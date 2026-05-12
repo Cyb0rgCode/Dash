@@ -71,50 +71,6 @@ def delete_task(task_id):
     return "", 204
 
 
-# ── Time Logs ──────────────────────────────────────────────────────────────────
-
-@app.route("/api/time-logs", methods=["GET"])
-def get_time_logs():
-    days = request.args.get("days", 7, type=int)
-    since = str(date.today() - timedelta(days=days - 1))
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM time_logs WHERE log_date >= ? ORDER BY log_date DESC, id DESC",
-        (since,),
-    ).fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route("/api/time-logs", methods=["POST"])
-def create_time_log():
-    data = request.json
-    conn = get_db()
-    cur = conn.execute(
-        "INSERT INTO time_logs (activity, category, duration_minutes, log_date, notes) VALUES (?, ?, ?, ?, ?)",
-        (
-            data["activity"],
-            data.get("category", "general"),
-            int(data["duration_minutes"]),
-            data.get("log_date", str(date.today())),
-            data.get("notes", ""),
-        ),
-    )
-    conn.commit()
-    row = conn.execute("SELECT * FROM time_logs WHERE id = ?", (cur.lastrowid,)).fetchone()
-    conn.close()
-    return jsonify(dict(row)), 201
-
-
-@app.route("/api/time-logs/<int:log_id>", methods=["DELETE"])
-def delete_time_log(log_id):
-    conn = get_db()
-    conn.execute("DELETE FROM time_logs WHERE id = ?", (log_id,))
-    conn.commit()
-    conn.close()
-    return "", 204
-
-
 # ── Habits ─────────────────────────────────────────────────────────────────────
 
 @app.route("/api/habits", methods=["GET"])

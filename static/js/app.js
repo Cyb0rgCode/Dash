@@ -11,12 +11,6 @@ async function api(path, method = "GET", body = null) {
   return res.json();
 }
 
-function fmtMinutes(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
 function greeting() {
   const h = new Date().getHours();
   if (h < 5)  return "Burning the midnight oil";
@@ -67,7 +61,6 @@ $$(".nav-btn").forEach(btn => {
     $(`#tab-${activeTab}`).classList.add("active");
     if (activeTab === "dashboard") loadDashboard();
     if (activeTab === "tasks")    loadTasks();
-    if (activeTab === "time")     loadLogs();
     if (activeTab === "habits")   { loadHabits(); loadGoals(); }
     if (activeTab === "matrix")   loadMatrix();
   });
@@ -75,21 +68,14 @@ $$(".nav-btn").forEach(btn => {
 
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 
-let dailyChart = null;
-let categoryChart = null;
-
 async function loadDashboard() {
-  const [analytics, tasks, logs] = await Promise.all([
+  const [analytics, tasks] = await Promise.all([
     api("/api/analytics"),
     api("/api/tasks"),
-    api("/api/time-logs?days=1"),
   ]);
 
   const todayStr = today();
   const tasksDoneToday = tasks.filter(t => t.completed && t.completed_at === todayStr).length;
-  const timeToday = logs
-    .filter(l => l.log_date === todayStr)
-    .reduce((s, l) => s + l.duration_minutes, 0);
   const pending = analytics.task_stats.pending;
 
   // Hero greeting + meta
@@ -107,12 +93,8 @@ async function loadDashboard() {
 
   // Animated count-up on stat numbers
   countUp($("#stat-tasks-done"), tasksDoneToday);
-  countUp($("#stat-time-today"), timeToday / 60, { decimals: 1, suffix: "h" });
   countUp($("#stat-habit-rate"), analytics.habit_completion_rate, { suffix: "%" });
   countUp($("#stat-pending"), pending);
-
-  renderDailyChart(analytics.daily_time);
-  renderCategoryChart(analytics.time_by_category);
 }
 
 function renderFocusBanner(tasks) {
@@ -140,103 +122,6 @@ function renderFocusBanner(tasks) {
   metaEl.innerHTML = others > 0
     ? `<strong>${others}</strong> more pending`
     : "Last one standing";
-}
-
-function renderDailyChart(data) {
-  const canvas = $("#chart-daily");
-  const ctx = canvas.getContext("2d");
-  if (dailyChart) dailyChart.destroy();
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, 240);
-  gradient.addColorStop(0, "rgba(124,117,255,0.95)");
-  gradient.addColorStop(1, "rgba(124,117,255,0.25)");
-  const hoverGradient = ctx.createLinearGradient(0, 0, 0, 240);
-  hoverGradient.addColorStop(0, "rgba(157,151,255,1)");
-  hoverGradient.addColorStop(1, "rgba(56,189,248,0.4)");
-
-  dailyChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: data.map(d => new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric" })),
-      datasets: [{
-        label: "Minutes",
-        data: data.map(d => d.total),
-        backgroundColor: gradient,
-        hoverBackgroundColor: hoverGradient,
-        borderRadius: 8,
-        borderSkipped: false,
-        maxBarThickness: 48,
-      }],
-    },
-    options: {
-      responsive: true,
-      animation: { duration: 700, easing: "easeOutCubic" },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: "rgba(31,35,51,0.95)",
-          borderColor: "rgba(124,117,255,0.4)",
-          borderWidth: 1,
-          titleColor: "#e6e9f2",
-          bodyColor: "#e6e9f2",
-          padding: 10,
-          cornerRadius: 8,
-          displayColors: false,
-          callbacks: { label: ctx => `${ctx.parsed.y} min` },
-        },
-      },
-      scales: {
-        x: { ticks: { color: "#828aa1", font: { size: 11 } }, grid: { display: false } },
-        y: { ticks: { color: "#828aa1", font: { size: 11 } }, grid: { color: "rgba(42,47,67,0.6)" }, beginAtZero: true, border: { display: false } },
-      },
-    },
-  });
-}
-
-function renderCategoryChart(data) {
-  const ctx = $("#chart-category").getContext("2d");
-  if (categoryChart) categoryChart.destroy();
-  if (!data.length) return;
-  const colors = ["#7c75ff", "#22c55e", "#f59e0b", "#ef4444", "#38bdf8", "#e879f9"];
-  categoryChart = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: data.map(d => d.category),
-      datasets: [{
-        data: data.map(d => d.total),
-        backgroundColor: colors.slice(0, data.length),
-        borderColor: "#161925",
-        borderWidth: 3,
-        hoverOffset: 8,
-      }],
-    },
-    options: {
-      responsive: true,
-      cutout: "65%",
-      animation: { animateRotate: true, duration: 700 },
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: {
-            color: "#e6e9f2",
-            boxWidth: 10,
-            boxHeight: 10,
-            padding: 14,
-            usePointStyle: true,
-            font: { size: 12, weight: "500" },
-          },
-        },
-        tooltip: {
-          backgroundColor: "rgba(31,35,51,0.95)",
-          borderColor: "rgba(124,117,255,0.4)",
-          borderWidth: 1,
-          padding: 10,
-          cornerRadius: 8,
-          callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} min` },
-        },
-      },
-    },
-  });
 }
 
 // ── Tasks ──────────────────────────────────────────────────────────────────────
@@ -336,100 +221,6 @@ $$(".filter-btn").forEach(btn => {
     taskFilter = btn.dataset.filter;
     renderTasks();
   });
-});
-
-// ── Time Tracker ───────────────────────────────────────────────────────────────
-
-let timerInterval = null;
-let timerSeconds = 0;
-let timerRunning = false;
-
-function fmtTimer(s) {
-  const h = String(Math.floor(s / 3600)).padStart(2, "0");
-  const m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
-  const sec = String(s % 60).padStart(2, "0");
-  return `${h}:${m}:${sec}`;
-}
-
-$("#timer-start").addEventListener("click", () => {
-  if (timerRunning) return;
-  timerRunning = true;
-  timerSeconds = 0;
-  const display = $("#timer-display");
-  display.textContent = "00:00:00";
-  display.classList.add("running");
-  $("#timer-start").disabled = true;
-  $("#timer-stop").disabled = false;
-  timerInterval = setInterval(() => {
-    timerSeconds++;
-    display.textContent = fmtTimer(timerSeconds);
-  }, 1000);
-});
-
-$("#timer-stop").addEventListener("click", async () => {
-  if (!timerRunning) return;
-  clearInterval(timerInterval);
-  timerRunning = false;
-  const display = $("#timer-display");
-  display.classList.remove("running");
-  $("#timer-start").disabled = false;
-  $("#timer-stop").disabled = true;
-
-  const mins = Math.max(1, Math.round(timerSeconds / 60));
-  const activity = $("#timer-activity").value.trim() || "Untitled session";
-  await api("/api/time-logs", "POST", {
-    activity,
-    category: $("#timer-category").value,
-    duration_minutes: mins,
-    log_date: today(),
-  });
-  timerSeconds = 0;
-  display.textContent = "00:00:00";
-  toast(`Saved: ${fmtMinutes(mins)} logged`);
-  loadLogs();
-});
-
-$("#log-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  const activity = $("#log-activity").value.trim();
-  if (!activity) return;
-  await api("/api/time-logs", "POST", {
-    activity,
-    category: $("#log-category").value,
-    duration_minutes: Number($("#log-duration").value),
-    log_date: $("#log-date").value || today(),
-  });
-  $("#log-activity").value = "";
-  $("#log-duration").value = "";
-  toast("Entry logged");
-  loadLogs();
-});
-
-async function loadLogs() {
-  const logs = await api("/api/time-logs?days=7");
-  const list = $("#log-list");
-  if (!logs.length) {
-    list.innerHTML = '<li style="color:var(--muted);justify-content:center;">No entries yet</li>';
-    return;
-  }
-  list.innerHTML = logs.map(l => `
-    <li data-id="${l.id}">
-      <span class="item-title">${escHtml(l.activity)}</span>
-      <span class="badge badge-medium">${escHtml(l.category)}</span>
-      <span class="item-meta">${fmtMinutes(l.duration_minutes)}</span>
-      <span class="item-meta">${l.log_date}</span>
-      <button class="btn-icon" data-action="delete" title="Delete">✕</button>
-    </li>
-  `).join("");
-}
-
-$("#log-list").addEventListener("click", async e => {
-  const btn = e.target.closest("[data-action='delete']");
-  if (!btn) return;
-  const id = Number(btn.closest("li").dataset.id);
-  await api(`/api/time-logs/${id}`, "DELETE");
-  toast("Log deleted");
-  loadLogs();
 });
 
 // ── Habits ─────────────────────────────────────────────────────────────────────
@@ -613,6 +404,3 @@ function escHtml(s) {
 // ── Init ───────────────────────────────────────────────────────────────────────
 
 loadDashboard();
-
-// Set today's date as default in log form
-$("#log-date").value = today();

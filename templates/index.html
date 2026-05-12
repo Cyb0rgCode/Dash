@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -26,7 +25,6 @@
     <nav>
       <button class="nav-btn active" data-tab="dashboard"><span class="nav-icon">◈</span><span class="nav-label">Dashboard</span></button>
       <button class="nav-btn" data-tab="tasks"><span class="nav-icon">◻</span><span class="nav-label">Tasks</span></button>
-      <button class="nav-btn" data-tab="time"><span class="nav-icon">◷</span><span class="nav-label">Time Tracker</span></button>
       <button class="nav-btn" data-tab="habits"><span class="nav-icon">◎</span><span class="nav-label">Habits &amp; Goals</span></button>
       <button class="nav-btn" data-tab="matrix"><span class="nav-icon">⊞</span><span class="nav-label">Matrix</span></button>
     </nav>
@@ -71,18 +69,6 @@
             <div class="stat-label">Tasks Done Today</div>
           </div>
         </div>
-        <div class="card stat" data-tone="accent">
-          <div class="stat-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-          <div class="stat-body">
-            <div class="stat-num" id="stat-time-today">—</div>
-            <div class="stat-label">Hours Tracked Today</div>
-          </div>
-        </div>
         <div class="card stat" data-tone="yellow">
           <div class="stat-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -105,16 +91,6 @@
             <div class="stat-num" id="stat-pending">—</div>
             <div class="stat-label">Open Tasks</div>
           </div>
-        </div>
-      </div>
-      <div class="charts-row">
-        <div class="card chart-card">
-          <h2>Time Logged Per Day (last 7 days)</h2>
-          <canvas id="chart-daily"></canvas>
-        </div>
-        <div class="card chart-card">
-          <h2>Time by Category (last 7 days)</h2>
-          <canvas id="chart-category"></canvas>
         </div>
       </div>
     </section>
@@ -140,42 +116,6 @@
         <button class="filter-btn" data-filter="done">Done</button>
       </div>
       <ul id="task-list" class="item-list"></ul>
-    </section>
-
-    <!-- TIME TRACKER -->
-    <section id="tab-time" class="tab">
-      <h1>Time Tracker</h1>
-      <div class="card timer-card">
-        <div id="timer-display" class="timer-display">00:00:00</div>
-        <div class="timer-controls">
-          <input id="timer-activity" type="text" placeholder="What are you working on?" />
-          <select id="timer-category">
-            <option value="deep work">Deep Work</option>
-            <option value="meetings">Meetings</option>
-            <option value="admin">Admin</option>
-            <option value="learning">Learning</option>
-            <option value="general">General</option>
-          </select>
-          <button id="timer-start" class="btn-green">Start</button>
-          <button id="timer-stop" class="btn-red" disabled>Stop &amp; Save</button>
-        </div>
-      </div>
-      <h2>Log Manual Entry</h2>
-      <form id="log-form" class="input-row">
-        <input id="log-activity" type="text" placeholder="Activity" required />
-        <select id="log-category">
-          <option value="deep work">Deep Work</option>
-          <option value="meetings">Meetings</option>
-          <option value="admin">Admin</option>
-          <option value="learning">Learning</option>
-          <option value="general">General</option>
-        </select>
-        <input id="log-duration" type="number" placeholder="Minutes" min="1" required />
-        <input id="log-date" type="date" />
-        <button type="submit">Log</button>
-      </form>
-      <h2>Recent Logs</h2>
-      <ul id="log-list" class="item-list"></ul>
     </section>
 
     <!-- HABITS & GOALS -->

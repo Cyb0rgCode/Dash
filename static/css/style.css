@@ -261,7 +261,7 @@ h2 {
 /* ── Stat cards ── */
 .stat-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   margin-bottom: 28px;
 }
@@ -270,7 +270,6 @@ h2 {
 .stat-cards .card:nth-child(2) { animation-delay: 60ms; }
 .stat-cards .card:nth-child(3) { animation-delay: 120ms; }
 .stat-cards .card:nth-child(4) { animation-delay: 180ms; }
-.charts-row .card { animation: cardIn 0.5s cubic-bezier(0.4,0,0.2,1) 240ms backwards; }
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(14px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -340,15 +339,6 @@ h2 {
   font-weight: 500;
 }
 
-/* ── Charts ── */
-.charts-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-.chart-card h2 { margin-top: 0; }
-.chart-card canvas { max-height: 220px; }
-
 /* ── Forms ── */
 .input-row {
   display: flex;
@@ -374,8 +364,6 @@ h2 {
 }
 .input-row input::placeholder { color: var(--muted); }
 .input-row input[placeholder="New task…"],
-.input-row input[placeholder="What are you working on?"],
-.input-row input[placeholder="Activity"],
 .input-row input[placeholder="New habit…"],
 .input-row input[placeholder="Goal title"] { flex: 1; min-width: 180px; }
 
@@ -485,98 +473,6 @@ h2 {
   line-height: 1;
 }
 .btn-icon:hover { color: var(--red); background: rgba(239,68,68,0.1); }
-
-/* ── Timer ── */
-.timer-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 28px;
-  padding: 28px;
-}
-
-.timer-display {
-  font-family: 'JetBrains Mono', ui-monospace, "SF Mono", monospace;
-  font-size: 64px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: linear-gradient(180deg, var(--accent-light) 0%, var(--accent) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: var(--accent);
-  letter-spacing: 3px;
-  transition: filter 0.3s;
-}
-.timer-display.running {
-  animation: timerPulse 2s ease-in-out infinite;
-  filter: drop-shadow(0 0 24px rgba(124,117,255,0.5));
-}
-@keyframes timerPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.75; }
-}
-
-.timer-card {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
-}
-.timer-card::before {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -10%;
-  width: 120%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(124,117,255,0.08), transparent 60%);
-  pointer-events: none;
-}
-
-.timer-controls {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: 100%;
-  max-width: 600px;
-}
-.timer-controls input, .timer-controls select {
-  flex: 1;
-  min-width: 140px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 14px;
-  outline: none;
-}
-.timer-controls input:focus, .timer-controls select:focus { border-color: var(--accent); }
-
-.btn-green {
-  background: var(--green) !important;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 20px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-}
-.btn-green:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-red {
-  background: var(--red) !important;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 20px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-}
-.btn-red:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Habits ── */
 .habit-check {
@@ -828,7 +724,6 @@ h2 {
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .stat-cards { grid-template-columns: repeat(2, 1fr); }
-  .charts-row { grid-template-columns: 1fr; }
   .two-col { grid-template-columns: 1fr; }
   .page-title { font-size: 30px; }
   .focus-banner { flex-wrap: wrap; }
