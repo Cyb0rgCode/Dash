@@ -4,12 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Productivity Dash</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <aside class="sidebar">
-    <div class="logo">Productivity<span>Dash</span></div>
+    <div class="logo">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7.5" height="9" rx="1.5"/>
+          <rect x="13.5" y="3" width="7.5" height="5" rx="1.5"/>
+          <rect x="13.5" y="11" width="7.5" height="10" rx="1.5"/>
+          <rect x="3" y="15" width="7.5" height="6" rx="1.5"/>
+        </svg>
+      </span>
+      <span class="logo-text">Productivity<span>Dash</span></span>
+    </div>
     <nav>
       <button class="nav-btn active" data-tab="dashboard"><span class="nav-icon">◈</span><span class="nav-label">Dashboard</span></button>
       <button class="nav-btn" data-tab="tasks"><span class="nav-icon">◻</span><span class="nav-label">Tasks</span></button>
@@ -26,10 +39,53 @@
     <section id="tab-dashboard" class="tab active">
       <h1>Dashboard</h1>
       <div class="stat-cards" id="stat-cards">
-        <div class="card stat"><div class="stat-num" id="stat-tasks-done">—</div><div class="stat-label">Tasks Done Today</div></div>
-        <div class="card stat"><div class="stat-num" id="stat-time-today">—</div><div class="stat-label">Hours Tracked Today</div></div>
-        <div class="card stat"><div class="stat-num" id="stat-habit-rate">—</div><div class="stat-label">Habit Rate (7d)</div></div>
-        <div class="card stat"><div class="stat-num" id="stat-pending">—</div><div class="stat-label">Open Tasks</div></div>
+        <div class="card stat" data-tone="green">
+          <div class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-tasks-done">—</div>
+            <div class="stat-label">Tasks Done Today</div>
+          </div>
+        </div>
+        <div class="card stat" data-tone="accent">
+          <div class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-time-today">—</div>
+            <div class="stat-label">Hours Tracked Today</div>
+          </div>
+        </div>
+        <div class="card stat" data-tone="yellow">
+          <div class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.06 2-6 .5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-habit-rate">—</div>
+            <div class="stat-label">Habit Rate (7d)</div>
+          </div>
+        </div>
+        <div class="card stat" data-tone="cyan">
+          <div class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+              <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-pending">—</div>
+            <div class="stat-label">Open Tasks</div>
+          </div>
+        </div>
       </div>
       <div class="charts-row">
         <div class="card chart-card">
