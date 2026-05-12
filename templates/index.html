@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Productivity Dash</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">Productivity<span>Dash</span></div>
+    <nav>
+      <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="nav-btn" data-tab="tasks">Tasks</button>
+      <button class="nav-btn" data-tab="time">Time Tracker</button>
+      <button class="nav-btn" data-tab="habits">Habits &amp; Goals</button>
+    </nav>
+    <div class="sidebar-date" id="sidebar-date"></div>
+  </aside>
+
+  <main class="content">
+
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="tab active">
+      <h1>Dashboard</h1>
+      <div class="stat-cards" id="stat-cards">
+        <div class="card stat"><div class="stat-num" id="stat-tasks-done">—</div><div class="stat-label">Tasks Done Today</div></div>
+        <div class="card stat"><div class="stat-num" id="stat-time-today">—</div><div class="stat-label">Hours Tracked Today</div></div>
+        <div class="card stat"><div class="stat-num" id="stat-habit-rate">—</div><div class="stat-label">Habit Rate (7d)</div></div>
+        <div class="card stat"><div class="stat-num" id="stat-pending">—</div><div class="stat-label">Open Tasks</div></div>
+      </div>
+      <div class="charts-row">
+        <div class="card chart-card">
+          <h2>Time Logged Per Day (last 7 days)</h2>
+          <canvas id="chart-daily"></canvas>
+        </div>
+        <div class="card chart-card">
+          <h2>Time by Category (last 7 days)</h2>
+          <canvas id="chart-category"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- TASKS -->
+    <section id="tab-tasks" class="tab">
+      <h1>Tasks</h1>
+      <form id="task-form" class="input-row">
+        <input id="task-title" type="text" placeholder="New task…" required />
+        <select id="task-priority">
+          <option value="high">High</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <input id="task-deadline" type="date" title="Deadline (optional)" />
+        <button type="submit">Add</button>
+      </form>
+      <div class="filter-row">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="pending">Pending</button>
+        <button class="filter-btn" data-filter="done">Done</button>
+      </div>
+      <ul id="task-list" class="item-list"></ul>
+    </section>
+
+    <!-- TIME TRACKER -->
+    <section id="tab-time" class="tab">
+      <h1>Time Tracker</h1>
+      <div class="card timer-card">
+        <div id="timer-display" class="timer-display">00:00:00</div>
+        <div class="timer-controls">
+          <input id="timer-activity" type="text" placeholder="What are you working on?" />
+          <select id="timer-category">
+            <option value="deep work">Deep Work</option>
+            <option value="meetings">Meetings</option>
+            <option value="admin">Admin</option>
+            <option value="learning">Learning</option>
+            <option value="general">General</option>
+          </select>
+          <button id="timer-start" class="btn-green">Start</button>
+          <button id="timer-stop" class="btn-red" disabled>Stop &amp; Save</button>
+        </div>
+      </div>
+      <h2>Log Manual Entry</h2>
+      <form id="log-form" class="input-row">
+        <input id="log-activity" type="text" placeholder="Activity" required />
+        <select id="log-category">
+          <option value="deep work">Deep Work</option>
+          <option value="meetings">Meetings</option>
+          <option value="admin">Admin</option>
+          <option value="learning">Learning</option>
+          <option value="general">General</option>
+        </select>
+        <input id="log-duration" type="number" placeholder="Minutes" min="1" required />
+        <input id="log-date" type="date" />
+        <button type="submit">Log</button>
+      </form>
+      <h2>Recent Logs</h2>
+      <ul id="log-list" class="item-list"></ul>
+    </section>
+
+    <!-- HABITS & GOALS -->
+    <section id="tab-habits" class="tab">
+      <h1>Habits &amp; Goals</h1>
+      <div class="two-col">
+        <div>
+          <h2>Daily Habits</h2>
+          <form id="habit-form" class="input-row">
+            <input id="habit-name" type="text" placeholder="New habit…" required />
+            <button type="submit">Add</button>
+          </form>
+          <ul id="habit-list" class="item-list"></ul>
+        </div>
+        <div>
+          <h2>Goals</h2>
+          <form id="goal-form" class="input-row stacked">
+            <input id="goal-title" type="text" placeholder="Goal title" required />
+            <div class="inline-row">
+              <input id="goal-target" type="number" placeholder="Target" min="1" required />
+              <input id="goal-unit" type="text" placeholder="Unit (e.g. km)" />
+              <input id="goal-deadline" type="date" title="Deadline (optional)" />
+            </div>
+            <button type="submit">Add Goal</button>
+          </form>
+          <ul id="goal-list" class="item-list"></ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
