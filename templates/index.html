@@ -11,10 +11,10 @@
   <aside class="sidebar">
     <div class="logo">Productivity<span>Dash</span></div>
     <nav>
-      <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
-      <button class="nav-btn" data-tab="tasks">Tasks</button>
-      <button class="nav-btn" data-tab="time">Time Tracker</button>
-      <button class="nav-btn" data-tab="habits">Habits &amp; Goals</button>
+      <button class="nav-btn active" data-tab="dashboard"><span class="nav-icon">◈</span><span class="nav-label">Dashboard</span></button>
+      <button class="nav-btn" data-tab="tasks"><span class="nav-icon">◻</span><span class="nav-label">Tasks</span></button>
+      <button class="nav-btn" data-tab="time"><span class="nav-icon">◷</span><span class="nav-label">Time Tracker</span></button>
+      <button class="nav-btn" data-tab="habits"><span class="nav-icon">◎</span><span class="nav-label">Habits &amp; Goals</span></button>
     </nav>
     <div class="sidebar-date" id="sidebar-date"></div>
   </aside>
@@ -129,6 +129,7 @@
 
   </main>
 
+  <div id="toast-container" class="toast-container"></div>
   <script src="/static/js/app.js"></script>
 </body>
 </html>

@@ -1,6 +1,16 @@
 /* ── Reset & base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── Focus ring ── */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
 :root {
   --bg: #0f1117;
   --surface: #1a1d27;
@@ -58,10 +68,14 @@ nav { display: flex; flex-direction: column; gap: 4px; }
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   transition: background 0.15s, color 0.15s;
 }
 .nav-btn:hover { background: var(--surface2); color: var(--text); }
 .nav-btn.active { background: var(--accent); color: #fff; }
+.nav-icon { font-size: 15px; flex-shrink: 0; line-height: 1; }
 
 .sidebar-date {
   margin-top: auto;
@@ -79,7 +93,11 @@ nav { display: flex; flex-direction: column; gap: 4px; }
 }
 
 .tab { display: none; }
-.tab.active { display: block; }
+.tab.active { display: block; animation: tabIn 0.18s ease; }
+@keyframes tabIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 h1 { font-size: 24px; font-weight: 700; margin-bottom: 24px; }
 h2 { font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: var(--text); }
@@ -100,7 +118,15 @@ h2 { font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: var(--text);
   margin-bottom: 28px;
 }
 
-.card.stat { text-align: center; }
+.card.stat {
+  text-align: center;
+  cursor: default;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card.stat:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(108,99,255,0.13);
+}
 .stat-num { font-size: 36px; font-weight: 700; color: var(--accent); }
 .stat-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
 
@@ -188,6 +214,11 @@ h2 { font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: var(--text);
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.item-list li:not(.done):hover {
+  border-color: var(--accent);
+  transform: translateX(3px);
 }
 
 .item-list li.done { opacity: 0.5; }
@@ -236,6 +267,14 @@ h2 { font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: var(--text);
   font-variant-numeric: tabular-nums;
   color: var(--accent);
   letter-spacing: 2px;
+  transition: color 0.3s;
+}
+.timer-display.running {
+  animation: timerPulse 2s ease-in-out infinite;
+}
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
 }
 
 .timer-controls {
@@ -343,6 +382,40 @@ h2 { font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: var(--text);
 /* ── Two-col layout ── */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
 
+/* ── Toast notifications ── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  max-width: 280px;
+  animation: toastIn 0.2s ease;
+}
+.toast.success { border-left-color: var(--green); }
+.toast.error   { border-left-color: var(--red); }
+.toast.fade-out { animation: toastOut 0.2s ease forwards; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(16px); }
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .stat-cards { grid-template-columns: repeat(2, 1fr); }
@@ -351,8 +424,10 @@ h2 { font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: var(--text);
 }
 @media (max-width: 600px) {
   .sidebar { width: 60px; padding: 16px 8px; }
-  .logo, .sidebar-date, .nav-btn { font-size: 0; }
-  .nav-btn::before { font-size: 18px; }
+  .logo, .sidebar-date { display: none; }
+  .nav-btn { padding: 10px; justify-content: center; }
+  .nav-label { display: none; }
+  .nav-icon { font-size: 18px; }
   .content { margin-left: 60px; padding: 16px; }
   .stat-cards { grid-template-columns: 1fr 1fr; }
 }

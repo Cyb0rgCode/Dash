@@ -171,6 +171,7 @@ $("#task-form").addEventListener("submit", async e => {
   });
   allTasks.unshift(task);
   renderTasks();
+  toast("Task added");
   $("#task-title").value = "";
   $("#task-deadline").value = "";
 });
@@ -191,6 +192,7 @@ $("#task-list").addEventListener("click", async e => {
     await api(`/api/tasks/${id}`, "DELETE");
     allTasks = allTasks.filter(t => t.id !== id);
     renderTasks();
+    toast("Task deleted");
   }
 });
 
@@ -220,12 +222,14 @@ $("#timer-start").addEventListener("click", () => {
   if (timerRunning) return;
   timerRunning = true;
   timerSeconds = 0;
-  $("#timer-display").textContent = "00:00:00";
+  const display = $("#timer-display");
+  display.textContent = "00:00:00";
+  display.classList.add("running");
   $("#timer-start").disabled = true;
   $("#timer-stop").disabled = false;
   timerInterval = setInterval(() => {
     timerSeconds++;
-    $("#timer-display").textContent = fmtTimer(timerSeconds);
+    display.textContent = fmtTimer(timerSeconds);
   }, 1000);
 });
 
@@ -233,6 +237,8 @@ $("#timer-stop").addEventListener("click", async () => {
   if (!timerRunning) return;
   clearInterval(timerInterval);
   timerRunning = false;
+  const display = $("#timer-display");
+  display.classList.remove("running");
   $("#timer-start").disabled = false;
   $("#timer-stop").disabled = true;
 
@@ -245,7 +251,8 @@ $("#timer-stop").addEventListener("click", async () => {
     log_date: today(),
   });
   timerSeconds = 0;
-  $("#timer-display").textContent = "00:00:00";
+  display.textContent = "00:00:00";
+  toast(`Saved: ${fmtMinutes(mins)} logged`);
   loadLogs();
 });
 
@@ -261,6 +268,7 @@ $("#log-form").addEventListener("submit", async e => {
   });
   $("#log-activity").value = "";
   $("#log-duration").value = "";
+  toast("Entry logged");
   loadLogs();
 });
 
@@ -287,6 +295,7 @@ $("#log-list").addEventListener("click", async e => {
   if (!btn) return;
   const id = Number(btn.closest("li").dataset.id);
   await api(`/api/time-logs/${id}`, "DELETE");
+  toast("Log deleted");
   loadLogs();
 });
 
@@ -317,6 +326,7 @@ $("#habit-form").addEventListener("submit", async e => {
   if (!name) return;
   await api("/api/habits", "POST", { name });
   $("#habit-name").value = "";
+  toast("Habit added");
   loadHabits();
 });
 
@@ -384,6 +394,7 @@ $("#goal-form").addEventListener("submit", async e => {
   $("#goal-target").value = "";
   $("#goal-unit").value = "";
   $("#goal-deadline").value = "";
+  toast("Goal added");
   loadGoals();
 });
 
@@ -399,9 +410,24 @@ $("#goal-list").addEventListener("click", async e => {
   if (action === "save-val") {
     const input = li.querySelector("[data-action='update-val']");
     await api(`/api/goals/${id}`, "PUT", { current_value: Number(input.value) });
+    toast("Progress updated");
     loadGoals();
   }
 });
+
+// ── Toast notifications ────────────────────────────────────────────────────────
+
+function toast(msg, type = "success") {
+  const container = $("#toast-container");
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add("fade-out");
+    el.addEventListener("animationend", () => el.remove(), { once: true });
+  }, 2600);
+}
 
 // ── Escape HTML ────────────────────────────────────────────────────────────────
 
