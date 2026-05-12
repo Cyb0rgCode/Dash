@@ -28,8 +28,9 @@ def create_task():
     data = request.json
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO tasks (title, priority, deadline) VALUES (?, ?, ?)",
-        (data["title"], data.get("priority", "medium"), data.get("deadline")),
+        "INSERT INTO tasks (title, priority, deadline, urgent, important) VALUES (?, ?, ?, ?, ?)",
+        (data["title"], data.get("priority", "medium"), data.get("deadline"),
+         int(bool(data.get("urgent", False))), int(bool(data.get("important", False)))),
     )
     conn.commit()
     row = conn.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -51,6 +52,10 @@ def update_task(task_id):
         conn.execute("UPDATE tasks SET title = ? WHERE id = ?", (data["title"], task_id))
     if "priority" in data:
         conn.execute("UPDATE tasks SET priority = ? WHERE id = ?", (data["priority"], task_id))
+    if "urgent" in data:
+        conn.execute("UPDATE tasks SET urgent = ? WHERE id = ?", (int(bool(data["urgent"])), task_id))
+    if "important" in data:
+        conn.execute("UPDATE tasks SET important = ? WHERE id = ?", (int(bool(data["important"])), task_id))
     conn.commit()
     row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     conn.close()

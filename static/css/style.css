@@ -382,6 +382,146 @@ h2 { font-size: 16px; font-weight: 600; margin: 20px 0 12px; color: var(--text);
 /* ── Two-col layout ── */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
 
+/* ── Toggle buttons (urgent / important) ── */
+.toggle-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.toggle-btn.urgent[aria-pressed="true"]   { background: var(--red);    border-color: var(--red);    color: #fff; }
+.toggle-btn.important[aria-pressed="true"]{ background: var(--green);  border-color: var(--green);  color: #fff; }
+
+/* ── Eisenhower Matrix ── */
+.matrix-subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 20px;
+  margin-top: -16px;
+}
+
+.matrix-axis-labels {
+  display: flex;
+  margin-left: 60px;
+  margin-bottom: 6px;
+}
+.axis-col-labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+
+.matrix-layout {
+  display: flex;
+  gap: 8px;
+}
+
+.axis-row-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 52px;
+  flex-shrink: 0;
+  padding: 16px 0;
+}
+.axis-row-labels span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.matrix-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  flex: 1;
+}
+
+.matrix-quadrant {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 220px;
+}
+.q1 { border-top: 3px solid var(--red); }
+.q2 { border-top: 3px solid var(--accent); }
+.q3 { border-top: 3px solid var(--yellow); }
+.q4 { border-top: 3px solid var(--muted); }
+
+.quadrant-header { margin-bottom: 4px; }
+.quadrant-label  { font-weight: 700; font-size: 14px; display: block; }
+.q1 .quadrant-label { color: var(--red); }
+.q2 .quadrant-label { color: var(--accent); }
+.q3 .quadrant-label { color: var(--yellow); }
+.q4 .quadrant-label { color: var(--muted); }
+
+.quadrant-sub {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.4px;
+}
+
+.matrix-task-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+
+.matrix-task {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  transition: border-color 0.15s;
+}
+.matrix-task:hover { border-color: var(--accent); }
+.matrix-task.done { opacity: 0.4; }
+.matrix-task.done span { text-decoration: line-through; }
+
+.matrix-check {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px;
+  transition: background 0.15s, border-color 0.15s;
+  padding: 0;
+}
+.matrix-check.done { background: var(--green); border-color: var(--green); color: #fff; }
+
+.matrix-empty { color: var(--muted); font-size: 12px; font-style: italic; padding: 4px 0; }
+
+@media (max-width: 700px) {
+  .matrix-grid { grid-template-columns: 1fr; }
+  .axis-col-labels, .axis-row-labels { display: none; }
+  .matrix-axis-labels { display: none; }
+  .matrix-layout { flex-direction: column; }
+}
+
 /* ── Toast notifications ── */
 .toast-container {
   position: fixed;

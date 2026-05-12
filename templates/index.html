@@ -15,6 +15,7 @@
       <button class="nav-btn" data-tab="tasks"><span class="nav-icon">◻</span><span class="nav-label">Tasks</span></button>
       <button class="nav-btn" data-tab="time"><span class="nav-icon">◷</span><span class="nav-label">Time Tracker</span></button>
       <button class="nav-btn" data-tab="habits"><span class="nav-icon">◎</span><span class="nav-label">Habits &amp; Goals</span></button>
+      <button class="nav-btn" data-tab="matrix"><span class="nav-icon">⊞</span><span class="nav-label">Matrix</span></button>
     </nav>
     <div class="sidebar-date" id="sidebar-date"></div>
   </aside>
@@ -53,6 +54,8 @@
           <option value="low">Low</option>
         </select>
         <input id="task-deadline" type="date" title="Deadline (optional)" />
+        <button type="button" id="task-urgent" class="toggle-btn urgent" aria-pressed="false">Urgent</button>
+        <button type="button" id="task-important" class="toggle-btn important" aria-pressed="false">Important</button>
         <button type="submit">Add</button>
       </form>
       <div class="filter-row">
@@ -123,6 +126,54 @@
             <button type="submit">Add Goal</button>
           </form>
           <ul id="goal-list" class="item-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- EISENHOWER MATRIX -->
+    <section id="tab-matrix" class="tab">
+      <h1>Eisenhower Matrix</h1>
+      <p class="matrix-subtitle">Classify tasks by urgency and importance when creating them in the Tasks tab.</p>
+      <div class="matrix-axis-labels">
+        <div class="axis-col-labels">
+          <span>URGENT</span>
+          <span>NOT URGENT</span>
+        </div>
+      </div>
+      <div class="matrix-layout">
+        <div class="axis-row-labels">
+          <span>IMPORTANT</span>
+          <span>NOT IMPORTANT</span>
+        </div>
+        <div class="matrix-grid">
+          <div class="matrix-quadrant q1">
+            <div class="quadrant-header">
+              <span class="quadrant-label">Do First</span>
+              <span class="quadrant-sub">Urgent · Important</span>
+            </div>
+            <ul id="matrix-q1" class="matrix-task-list"></ul>
+          </div>
+          <div class="matrix-quadrant q2">
+            <div class="quadrant-header">
+              <span class="quadrant-label">Schedule</span>
+              <span class="quadrant-sub">Not Urgent · Important</span>
+            </div>
+            <ul id="matrix-q2" class="matrix-task-list"></ul>
+          </div>
+          <div class="matrix-quadrant q3">
+            <div class="quadrant-header">
+              <span class="quadrant-label">Delegate</span>
+              <span class="quadrant-sub">Urgent · Not Important</span>
+            </div>
+            <ul id="matrix-q3" class="matrix-task-list"></ul>
+          </div>
+          <div class="matrix-quadrant q4">
+            <div class="quadrant-header">
+              <span class="quadrant-label">Eliminate</span>
+              <span class="quadrant-sub">Not Urgent · Not Important</span>
+            </div>
+            <ul id="matrix-q4" class="matrix-task-list"></ul>
+          </div>
         </div>
       </div>
     </section>

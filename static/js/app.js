@@ -43,9 +43,10 @@ $$(".nav-btn").forEach(btn => {
     activeTab = btn.dataset.tab;
     $(`#tab-${activeTab}`).classList.add("active");
     if (activeTab === "dashboard") loadDashboard();
-    if (activeTab === "tasks") loadTasks();
-    if (activeTab === "time") loadLogs();
-    if (activeTab === "habits") { loadHabits(); loadGoals(); }
+    if (activeTab === "tasks")    loadTasks();
+    if (activeTab === "time")     loadLogs();
+    if (activeTab === "habits")   { loadHabits(); loadGoals(); }
+    if (activeTab === "matrix")   loadMatrix();
   });
 });
 
@@ -160,20 +161,40 @@ function renderTasks() {
   `).join("");
 }
 
+// ── Urgent / Important toggles ─────────────────────────────────────────────────
+
+$$(".toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const pressed = btn.getAttribute("aria-pressed") === "true";
+    btn.setAttribute("aria-pressed", String(!pressed));
+  });
+});
+
+function getToggle(id) {
+  return $("#" + id).getAttribute("aria-pressed") === "true";
+}
+function resetToggle(id) {
+  $("#" + id).setAttribute("aria-pressed", "false");
+}
+
 $("#task-form").addEventListener("submit", async e => {
   e.preventDefault();
   const title = $("#task-title").value.trim();
   if (!title) return;
   const task = await api("/api/tasks", "POST", {
     title,
-    priority: $("#task-priority").value,
-    deadline: $("#task-deadline").value || null,
+    priority:  $("#task-priority").value,
+    deadline:  $("#task-deadline").value || null,
+    urgent:    getToggle("task-urgent"),
+    important: getToggle("task-important"),
   });
   allTasks.unshift(task);
   renderTasks();
   toast("Task added");
   $("#task-title").value = "";
   $("#task-deadline").value = "";
+  resetToggle("task-urgent");
+  resetToggle("task-important");
 });
 
 $("#task-list").addEventListener("click", async e => {
@@ -413,6 +434,44 @@ $("#goal-list").addEventListener("click", async e => {
     toast("Progress updated");
     loadGoals();
   }
+});
+
+// ── Eisenhower Matrix ──────────────────────────────────────────────────────────
+
+let matrixTasks = [];
+
+async function loadMatrix() {
+  matrixTasks = await api("/api/tasks");
+  const open = matrixTasks.filter(t => !t.completed);
+  renderMatrixQuadrant("matrix-q1", open.filter(t =>  t.urgent &&  t.important));
+  renderMatrixQuadrant("matrix-q2", open.filter(t => !t.urgent &&  t.important));
+  renderMatrixQuadrant("matrix-q3", open.filter(t =>  t.urgent && !t.important));
+  renderMatrixQuadrant("matrix-q4", open.filter(t => !t.urgent && !t.important));
+}
+
+function renderMatrixQuadrant(listId, tasks) {
+  const list = $(`#${listId}`);
+  if (!tasks.length) {
+    list.innerHTML = '<li class="matrix-empty">No tasks</li>';
+    return;
+  }
+  list.innerHTML = tasks.map(t => `
+    <li class="matrix-task" data-id="${t.id}">
+      <button class="matrix-check" data-action="toggle" title="Mark complete"></button>
+      <span>${escHtml(t.title)}</span>
+      ${t.deadline ? `<span class="item-meta" style="margin-left:auto;font-size:11px">${t.deadline}</span>` : ""}
+    </li>
+  `).join("");
+}
+
+$("#tab-matrix").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-action='toggle']");
+  if (!btn) return;
+  const li = btn.closest(".matrix-task");
+  const id = Number(li.dataset.id);
+  await api(`/api/tasks/${id}`, "PUT", { completed: true });
+  toast("Task done");
+  loadMatrix();
 });
 
 // ── Toast notifications ────────────────────────────────────────────────────────

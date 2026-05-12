@@ -59,4 +59,16 @@ def init_db():
         );
     """)
     conn.commit()
+
+    # Migrations — safe to run on existing DBs
+    for col, typedef in [
+        ("urgent",    "INTEGER NOT NULL DEFAULT 0"),
+        ("important", "INTEGER NOT NULL DEFAULT 0"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {typedef}")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
     conn.close()
