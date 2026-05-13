@@ -538,67 +538,25 @@ h2 {
 body.drag-selecting { user-select: none; }
 body.drag-selecting * { cursor: crosshair !important; }
 
-/* ── Task checkboxes ── */
-.task-checkbox {
-  width: 15px;
-  height: 15px;
-  cursor: pointer;
-  accent-color: var(--accent);
-  flex-shrink: 0;
-}
-
-/* ── Inline edit row ── */
-.edit-row {
-  display: none;
-  flex-basis: 100%;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-soft);
-  margin-top: 2px;
-}
-.edit-row.open { display: flex; }
-.edit-title {
+/* ── Batch edit title input ── */
+.batch-edit-title {
   flex: 1;
-  min-width: 140px;
+  min-width: 120px;
+  max-width: 220px;
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   font-size: 13px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.15s;
 }
-.edit-title:focus { border-color: var(--accent); }
-.edit-priority, .edit-deadline {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 12.5px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.edit-priority:focus, .edit-deadline:focus { border-color: var(--accent); }
-.btn-save {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 5px 14px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.15s;
-}
-.btn-save:hover { background: var(--accent-light); }
-.edit-btn:hover { color: var(--accent) !important; background: var(--accent-dim) !important; }
+.batch-edit-title:focus { border-color: var(--accent); }
+.batch-edit-title::placeholder { color: var(--muted); }
+#batch-save { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+#batch-save:hover { background: var(--accent-light) !important; border-color: var(--accent-light) !important; }
 
 /* ── Batch action bar ── */
 .batch-bar {
@@ -609,7 +567,8 @@ body.drag-selecting * { cursor: crosshair !important; }
   margin-bottom: 12px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   box-shadow: 0 0 0 3px var(--accent-dim), var(--shadow-md);
   animation: batchIn 0.15s ease;
 }

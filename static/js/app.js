@@ -321,7 +321,6 @@ function renderTasks() {
 
   list.innerHTML = tasks.map(t => `
     <li class="${t.completed ? "done" : ""}" data-id="${t.id}">
-      <input type="checkbox" class="task-checkbox" data-id="${t.id}" ${selectedIds.has(t.id) ? "checked" : ""} />
       <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete">
         ${t.completed ? "✓" : ""}
       </button>
@@ -330,21 +329,7 @@ function renderTasks() {
       ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
       ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
       <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
-      <button class="btn-icon edit-btn" data-action="edit" title="Edit">✎</button>
       <button class="btn-icon" data-action="delete" title="Delete">✕</button>
-      <div class="edit-row">
-        <input class="edit-title" type="text" value="${escHtml(t.title)}" />
-        <select class="edit-priority">
-          <option value="high" ${t.priority === "high" ? "selected" : ""}>High</option>
-          <option value="medium" ${t.priority === "medium" ? "selected" : ""}>Medium</option>
-          <option value="low" ${t.priority === "low" ? "selected" : ""}>Low</option>
-        </select>
-        <input class="edit-deadline" type="date" value="${t.deadline || ""}" />
-        <button type="button" class="toggle-btn urgent" aria-pressed="${t.urgent ? "true" : "false"}">Urgent</button>
-        <button type="button" class="toggle-btn important" aria-pressed="${t.important ? "true" : "false"}">Important</button>
-        <button type="button" class="btn-save" data-action="save-edit">Save</button>
-        <button type="button" class="btn-icon" data-action="cancel-edit">✕</button>
-      </div>
     </li>
   `).join("");
   updateBatchBar();
@@ -386,21 +371,7 @@ $("#task-form").addEventListener("submit", async e => {
   resetToggle("task-important");
 });
 
-$("#task-list").addEventListener("change", e => {
-  if (!e.target.classList.contains("task-checkbox")) return;
-  const id = Number(e.target.dataset.id);
-  e.target.checked ? selectedIds.add(id) : selectedIds.delete(id);
-  updateBatchBar();
-});
-
 $("#task-list").addEventListener("click", async e => {
-  // Toggle buttons inside edit rows
-  if (e.target.classList.contains("toggle-btn")) {
-    const pressed = e.target.getAttribute("aria-pressed") === "true";
-    e.target.setAttribute("aria-pressed", String(!pressed));
-    return;
-  }
-
   const li = e.target.closest("li");
   if (!li) return;
   const id = Number(li.dataset.id);
@@ -419,28 +390,6 @@ $("#task-list").addEventListener("click", async e => {
     selectedIds.delete(id);
     renderTasks();
     toast("Task deleted");
-  }
-  if (action === "edit") {
-    const row = li.querySelector(".edit-row");
-    row.classList.toggle("open");
-    if (row.classList.contains("open")) row.querySelector(".edit-title").focus();
-  }
-  if (action === "cancel-edit") {
-    li.querySelector(".edit-row").classList.remove("open");
-  }
-  if (action === "save-edit") {
-    const row = li.querySelector(".edit-row");
-    const title = row.querySelector(".edit-title").value.trim();
-    if (!title) return;
-    const priority  = row.querySelector(".edit-priority").value;
-    const deadline  = row.querySelector(".edit-deadline").value || null;
-    const urgent    = row.querySelector(".toggle-btn.urgent").getAttribute("aria-pressed") === "true";
-    const important = row.querySelector(".toggle-btn.important").getAttribute("aria-pressed") === "true";
-    const updated = await api(`/api/tasks/${id}`, "PUT", { title, priority, deadline, urgent, important });
-    const idx = allTasks.findIndex(t => t.id === id);
-    allTasks[idx] = { ...updated, time_logged: allTasks[idx].time_logged };
-    renderTasks();
-    toast("Task updated");
   }
 });
 
@@ -473,8 +422,48 @@ function updateBatchBar() {
   const bar = $("#batch-bar");
   const n = selectedIds.size;
   bar.hidden = n === 0;
-  if (n > 0) $("#batch-count").textContent = `${n} selected`;
+  if (n === 0) return;
+  $("#batch-count").textContent = `${n} selected`;
+  if (n === 1) {
+    const task = allTasks.find(t => t.id === [...selectedIds][0]);
+    if (task) {
+      $("#batch-edit-title").value = task.title;
+      $("#batch-edit-priority").value = task.priority;
+      $("#batch-edit-deadline").value = task.deadline || "";
+      $("#batch-edit-urgent").setAttribute("aria-pressed", task.urgent ? "true" : "false");
+      $("#batch-edit-important").setAttribute("aria-pressed", task.important ? "true" : "false");
+    }
+    $("#batch-edit").hidden = false;
+    $("#batch-multi").hidden = true;
+  } else {
+    $("#batch-edit").hidden = true;
+    $("#batch-multi").hidden = false;
+  }
 }
+
+["batch-edit-urgent", "batch-edit-important"].forEach(btnId => {
+  $("#" + btnId).addEventListener("click", () => {
+    const btn = $("#" + btnId);
+    btn.setAttribute("aria-pressed", String(btn.getAttribute("aria-pressed") !== "true"));
+  });
+});
+
+$("#batch-save").addEventListener("click", async () => {
+  const id = [...selectedIds][0];
+  if (!id) return;
+  const title = $("#batch-edit-title").value.trim();
+  if (!title) return;
+  const priority  = $("#batch-edit-priority").value;
+  const deadline  = $("#batch-edit-deadline").value || null;
+  const urgent    = $("#batch-edit-urgent").getAttribute("aria-pressed") === "true";
+  const important = $("#batch-edit-important").getAttribute("aria-pressed") === "true";
+  const updated = await api(`/api/tasks/${id}`, "PUT", { title, priority, deadline, urgent, important });
+  const idx = allTasks.findIndex(t => t.id === id);
+  allTasks[idx] = { ...updated, time_logged: allTasks[idx].time_logged };
+  selectedIds.clear();
+  renderTasks();
+  toast("Task updated");
+});
 
 $("#batch-clear").addEventListener("click", () => {
   selectedIds.clear();

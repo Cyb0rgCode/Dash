@@ -134,7 +134,19 @@
       </div>
       <div id="batch-bar" class="batch-bar" hidden>
         <span id="batch-count"></span>
-        <div class="batch-actions">
+        <div id="batch-edit" class="batch-actions" hidden>
+          <input id="batch-edit-title" class="batch-edit-title" type="text" placeholder="Title…" />
+          <select id="batch-edit-priority" class="batch-select">
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <input id="batch-edit-deadline" type="date" class="batch-select" title="Deadline" />
+          <button type="button" id="batch-edit-urgent" class="toggle-btn urgent" aria-pressed="false">Urgent</button>
+          <button type="button" id="batch-edit-important" class="toggle-btn important" aria-pressed="false">Important</button>
+          <button type="button" id="batch-save" class="batch-btn">Save</button>
+        </div>
+        <div id="batch-multi" class="batch-actions" hidden>
           <select id="batch-priority" class="batch-select">
             <option value="">Priority…</option>
             <option value="high">High</option>
@@ -143,9 +155,9 @@
           </select>
           <button type="button" id="batch-urgent" class="batch-btn">Urgent</button>
           <button type="button" id="batch-important" class="batch-btn">Important</button>
-          <button type="button" id="batch-done" class="batch-btn">Mark done</button>
-          <button type="button" id="batch-delete" class="batch-btn danger">Delete</button>
         </div>
+        <button type="button" id="batch-done" class="batch-btn">Mark done</button>
+        <button type="button" id="batch-delete" class="batch-btn danger">Delete</button>
         <button type="button" id="batch-clear" class="btn-icon" title="Clear selection">✕</button>
       </div>
       <div class="filter-row">
