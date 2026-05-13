@@ -563,24 +563,33 @@ $("#batch-delete").addEventListener("click", async () => {
 
 // ── JSON Import ────────────────────────────────────────────────────────────────
 
-const AI_PROMPT = `Generate a JSON task list for a productivity app. Return ONLY a valid JSON array — no markdown, no explanation — where each object has:
-- "title": string (required) — clear, actionable task name
-- "category": string (required) — short group label, e.g. "Exercise", "Study", "Work", "Health", "Personal"
-- "priority": "high" | "medium" | "low" (required)
-- "urgent": true | false — needs attention today or immediately
-- "important": true | false — high impact on goals or values
-- "deadline": "YYYY-MM-DD" | null — due date if applicable
-- "estimated_minutes": number (required) — realistic estimate of how long this task will take, e.g. 30, 45, 90
+const AI_PROMPT = `You are a productivity assistant. I will paste files, documents, syllabi, problem sets, schedules, or any content below. Your job is to read everything carefully and extract EVERY actionable item as a task.
+
+Return ONLY a valid JSON array — no markdown, no explanation, no preamble. Each task object must have exactly these fields:
+
+- "title": string — specific, actionable task name (not vague; e.g. "Solve exercises 3.1–3.8" not "Do homework")
+- "category": string — short group label derived from the content (e.g. "Exercise", "Study", "Lecture", "Assignment", "Reading", "Work", "Health", "Personal")
+- "priority": "high" | "medium" | "low" — infer from deadlines, weight, or importance in the source
+- "urgent": true | false — true if due within the next 2–3 days or marked as imminent
+- "important": true | false — true if it significantly impacts a grade, goal, or outcome
+- "deadline": "YYYY-MM-DD" | null — extract exact dates from the content; null if none mentioned
+- "estimated_minutes": number — realistic time to complete (e.g. reading: ~2 min/page, problem set: 20–40 min/problem, coding task: 45–120 min, short exercise: 20–45 min)
+
+Rules:
+- Break large items into specific sub-tasks when possible
+- Use the actual names, numbers, and chapters from the content in the title
+- Infer category from context (a syllabus → "Study"/"Assignment", a workout plan → "Exercise", etc.)
+- estimated_minutes must always be a positive integer
 
 Example output:
 [
-  {"title":"Finish quarterly report","category":"Work","priority":"high","urgent":true,"important":true,"deadline":"2024-12-31","estimated_minutes":120},
-  {"title":"30-min run","category":"Exercise","priority":"medium","urgent":false,"important":true,"deadline":null,"estimated_minutes":35},
-  {"title":"Read design book chapter","category":"Study","priority":"low","urgent":false,"important":true,"deadline":null,"estimated_minutes":45},
-  {"title":"Buy groceries","category":"Personal","priority":"medium","urgent":true,"important":false,"deadline":null,"estimated_minutes":20}
+  {"title":"Read Chapter 4 — Dynamic Programming (pp. 87–110)","category":"Study","priority":"high","urgent":true,"important":true,"deadline":"2024-12-10","estimated_minutes":50},
+  {"title":"Solve problem set 3, questions 1–6","category":"Assignment","priority":"high","urgent":false,"important":true,"deadline":"2024-12-14","estimated_minutes":90},
+  {"title":"30-min interval run","category":"Exercise","priority":"medium","urgent":false,"important":true,"deadline":null,"estimated_minutes":35}
 ]
 
-Now generate tasks for: [DESCRIBE YOUR GOAL OR PROJECT HERE]`;
+[PASTE YOUR FILES, SYLLABUS, PROBLEM SET, SCHEDULE, OR ANY CONTENT BELOW THIS LINE]
+`;
 
 $("#task-import-input").addEventListener("change", async e => {
   const file = e.target.files[0];
@@ -632,39 +641,46 @@ $("#copy-prompt-btn").addEventListener("click", async () => {
   }
 });
 
-// ── Drag-to-select (right-click drag) ─────────────────────────────────────────
+// ── Drag-to-select (left-click hold + drag) ────────────────────────────────────
 
 let isDragSelecting = false;
 let dragSelectMode = null; // "select" | "deselect"
+let dragAnchorEl   = null;
+let dragStartX = 0, dragStartY = 0;
+const DRAG_THRESHOLD = 6;
 
 document.addEventListener("mousedown", e => {
-  if (e.button !== 2) return;
+  if (e.button !== 0) return;
   const li = e.target.closest("#task-list li[data-id]");
   if (!li || e.target.closest("button, input, select")) return;
-  e.preventDefault();
-  isDragSelecting = true;
-  document.body.classList.add("drag-selecting");
-  const id = Number(li.dataset.id);
-  dragSelectMode = selectedIds.has(id) ? "deselect" : "select";
-  applyDragSelect(li, id);
+  dragAnchorEl = li;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
 });
 
-document.addEventListener("mouseover", e => {
-  if (!isDragSelecting) return;
-  const li = e.target.closest("#task-list li[data-id]");
-  if (!li) return;
-  applyDragSelect(li, Number(li.dataset.id));
+document.addEventListener("mousemove", e => {
+  if (!dragAnchorEl) return;
+  if (!isDragSelecting) {
+    if (Math.abs(e.clientX - dragStartX) < DRAG_THRESHOLD &&
+        Math.abs(e.clientY - dragStartY) < DRAG_THRESHOLD) return;
+    isDragSelecting = true;
+    document.body.classList.add("drag-selecting");
+    const id = Number(dragAnchorEl.dataset.id);
+    dragSelectMode = selectedIds.has(id) ? "deselect" : "select";
+    applyDragSelect(dragAnchorEl, id);
+  }
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const li = el?.closest("#task-list li[data-id]");
+  if (li) applyDragSelect(li, Number(li.dataset.id));
 });
 
 document.addEventListener("mouseup", e => {
-  if (e.button !== 2 || !isDragSelecting) return;
+  if (e.button !== 0) return;
+  dragAnchorEl = null;
+  if (!isDragSelecting) return;
   isDragSelecting = false;
   dragSelectMode = null;
   document.body.classList.remove("drag-selecting");
-});
-
-document.addEventListener("contextmenu", e => {
-  if (e.target.closest("#task-list")) e.preventDefault();
 });
 
 function applyDragSelect(li, id) {
