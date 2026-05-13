@@ -316,6 +316,7 @@ function renderTasks() {
 
   if (!tasks.length) {
     list.innerHTML = '<li style="color:var(--muted);justify-content:center;">No tasks here</li>';
+    updateBatchBar();
     return;
   }
 
@@ -337,26 +338,48 @@ function renderTasks() {
     html += `<li class="category-header${allSel ? " all-selected" : ""}" data-category="${escHtml(cat)}">
       <span class="category-header-name">${escHtml(cat)}</span>
       <span class="category-header-count">${catTasks.length} task${catTasks.length === 1 ? "" : "s"}</span>
-      <button type="button" class="category-select-btn" data-action="select-category">${allSel ? "Deselect" : "Select all"}</button>
+      <button type="button" class="category-select-btn" data-action="select-category">${allSel ? "Deselect all" : "Select all"}</button>
     </li>`;
+
+    // Sub-group by chapter within the category
+    const chGroups = {};
     catTasks.forEach(t => {
-      const urgCls = t.urgent && t.important ? " li-both"
-        : t.important ? " li-important"
-        : t.urgent    ? " li-urgent" : "";
-      html += `<li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}${urgCls}" data-id="${t.id}">
-        <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete">${t.completed ? "✓" : ""}</button>
-        <span class="item-title">${escHtml(t.title)}</span>
-        ${t.task_type ? `<span class="tag-type">${escHtml(t.task_type)}</span>` : ""}
-        ${t.urgent ? '<span class="tag-urgent">! urgent</span>' : ""}
-        ${t.important ? '<span class="tag-important">★ key</span>' : ""}
-        <span class="badge badge-${t.priority}">${t.priority}</span>
-        ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
-        ${t.estimated_minutes ? `<span class="estimate-badge">~${fmtTime(t.estimated_minutes)}</span>` : ""}
-        ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
-        <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
-        <button class="btn-icon" data-action="delete" title="Delete">✕</button>
-      </li>`;
+      const ch = t.chapter || "";
+      if (!chGroups[ch]) chGroups[ch] = [];
+      chGroups[ch].push(t);
     });
+    const chKeys = Object.keys(chGroups).sort((a, b) =>
+      a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, undefined, { numeric: true })
+    );
+
+    for (const ch of chKeys) {
+      if (ch) {
+        const chTasks = chGroups[ch];
+        const chAllSel = chTasks.every(t => selectedIds.has(t.id));
+        html += `<li class="chapter-header${chAllSel ? " all-selected" : ""}" data-category="${escHtml(cat)}" data-chapter="${escHtml(ch)}">
+          <span class="chapter-header-name">${escHtml(ch)}</span>
+          <button type="button" class="chapter-select-btn" data-action="select-chapter">${chAllSel ? "Deselect" : "Select"}</button>
+        </li>`;
+      }
+      chGroups[ch].forEach(t => {
+        const urgCls = t.urgent && t.important ? " li-both"
+          : t.important ? " li-important"
+          : t.urgent    ? " li-urgent" : "";
+        html += `<li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}${urgCls}" data-id="${t.id}">
+          <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete">${t.completed ? "✓" : ""}</button>
+          <span class="item-title">${escHtml(t.title)}</span>
+          ${t.task_type ? `<span class="tag-type">${escHtml(t.task_type)}</span>` : ""}
+          ${t.urgent ? '<span class="tag-urgent">! urgent</span>' : ""}
+          ${t.important ? '<span class="tag-important">★ key</span>' : ""}
+          <span class="badge badge-${t.priority}">${t.priority}</span>
+          ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
+          ${t.estimated_minutes ? `<span class="estimate-badge">~${fmtTime(t.estimated_minutes)}</span>` : ""}
+          ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
+          <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
+          <button class="btn-icon" data-action="delete" title="Delete">✕</button>
+        </li>`;
+      });
+    }
   }
   list.innerHTML = html;
   updateBatchBar();
@@ -410,6 +433,20 @@ $("#task-list").addEventListener("click", async e => {
     if (taskFilter === "done")    catTasks = catTasks.filter(t => t.completed);
     const allSel = catTasks.length > 0 && catTasks.every(t => selectedIds.has(t.id));
     catTasks.forEach(t => allSel ? selectedIds.delete(t.id) : selectedIds.add(t.id));
+    renderTasks();
+    return;
+  }
+
+  if (action === "select-chapter") {
+    const header = e.target.closest(".chapter-header");
+    const cat = header?.dataset.category;
+    const ch  = header?.dataset.chapter;
+    if (!cat || ch === undefined) return;
+    let chTasks = allTasks.filter(t => (t.category || "Other") === cat && (t.chapter || "") === ch);
+    if (taskFilter === "pending") chTasks = chTasks.filter(t => !t.completed);
+    if (taskFilter === "done")    chTasks = chTasks.filter(t => t.completed);
+    const allSel = chTasks.length > 0 && chTasks.every(t => selectedIds.has(t.id));
+    chTasks.forEach(t => allSel ? selectedIds.delete(t.id) : selectedIds.add(t.id));
     renderTasks();
     return;
   }
@@ -477,6 +514,7 @@ function updateBatchBar() {
     if (task) {
       $("#batch-edit-title").value = task.title;
       $("#batch-edit-category").value = task.category || "";
+      $("#batch-edit-chapter").value = task.chapter || "";
       $("#batch-edit-type").value = task.task_type || "";
       $("#batch-edit-priority").value = task.priority;
       $("#batch-edit-deadline").value = task.deadline || "";
@@ -499,12 +537,6 @@ function updateBatchBar() {
   }
 }
 
-["batch-edit-urgent", "batch-edit-important"].forEach(btnId => {
-  $("#" + btnId).addEventListener("click", () => {
-    const btn = $("#" + btnId);
-    btn.setAttribute("aria-pressed", String(btn.getAttribute("aria-pressed") !== "true"));
-  });
-});
 
 $("#batch-save").addEventListener("click", async () => {
   const id = [...selectedIds][0];
@@ -512,13 +544,14 @@ $("#batch-save").addEventListener("click", async () => {
   const title = $("#batch-edit-title").value.trim();
   if (!title) return;
   const category          = $("#batch-edit-category").value.trim();
+  const chapter           = $("#batch-edit-chapter").value.trim();
   const task_type         = $("#batch-edit-type").value;
   const priority          = $("#batch-edit-priority").value;
   const deadline          = $("#batch-edit-deadline").value || null;
   const estimated_minutes = parseInt($("#batch-edit-estimate").value, 10) || 0;
   const urgent            = $("#batch-edit-urgent").getAttribute("aria-pressed") === "true";
   const important         = $("#batch-edit-important").getAttribute("aria-pressed") === "true";
-  const updated = await api(`/api/tasks/${id}`, "PUT", { title, category, task_type, priority, deadline, estimated_minutes, urgent, important });
+  const updated = await api(`/api/tasks/${id}`, "PUT", { title, category, chapter, task_type, priority, deadline, estimated_minutes, urgent, important });
   const idx = allTasks.findIndex(t => t.id === id);
   allTasks[idx] = { ...updated, time_logged: allTasks[idx].time_logged };
   selectedIds.clear();
@@ -601,8 +634,9 @@ const AI_PROMPT = `You are a productivity assistant. I will paste files, documen
 
 Return ONLY a valid JSON array — no markdown, no explanation. Each object must have:
 
-- "title": string — specific task using exact names/numbers from the content (e.g. "Chapter 3 Exercises 1–8", not "Do homework")
+- "title": string — specific task using exact names/numbers from the content (e.g. "Exercises 1–8", not "Do homework")
 - "category": string — the course or subject name exactly as it appears (e.g. "Math 201", "Physics II", "CS50"). For non-class items use "Work", "Personal", "Health", etc.
+- "chapter": string | null — the chapter, section, or topic within the course (e.g. "Chapter 3", "Week 5", "Unit 2: Integration"). null if not applicable
 - "task_type": one of — "exercise" | "quiz" | "assignment" | "reading" | "lab" | "project" | "lecture" | "other"
 - "priority": "high" | "medium" | "low" — based on deadline proximity and grade weight
 - "urgent": false — default false; only set true if due within 48 hours or explicitly flagged urgent in the content
@@ -645,6 +679,7 @@ $("#task-import-input").addEventListener("change", async e => {
       const task = await api("/api/tasks", "POST", {
         title:              t.title.trim(),
         category:           t.category ? String(t.category).trim() : "",
+        chapter:            t.chapter  ? String(t.chapter).trim()  : "",
         task_type:          t.task_type ? String(t.task_type).trim() : "",
         priority:           ["high", "medium", "low"].includes(t.priority) ? t.priority : "medium",
         deadline:           t.deadline || null,

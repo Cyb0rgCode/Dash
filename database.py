@@ -75,6 +75,7 @@ def init_db():
         ("category",           "TEXT NOT NULL DEFAULT ''"),
         ("estimated_minutes",  "INTEGER NOT NULL DEFAULT 0"),
         ("task_type",          "TEXT NOT NULL DEFAULT ''"),
+        ("chapter",            "TEXT NOT NULL DEFAULT ''"),
     ]:
         try:
             conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {typedef}")

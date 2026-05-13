@@ -56,11 +56,11 @@ def create_task():
     data = request.json
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO tasks (title, priority, deadline, urgent, important, category, estimated_minutes, task_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO tasks (title, priority, deadline, urgent, important, category, estimated_minutes, task_type, chapter) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (data["title"], data.get("priority", "medium"), data.get("deadline"),
          int(bool(data.get("urgent", False))), int(bool(data.get("important", False))),
          data.get("category", ""), int(data.get("estimated_minutes", 0)),
-         data.get("task_type", "")),
+         data.get("task_type", ""), data.get("chapter", "")),
     )
     conn.commit()
     row = conn.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -94,6 +94,8 @@ def update_task(task_id):
         conn.execute("UPDATE tasks SET estimated_minutes = ? WHERE id = ?", (int(data.get("estimated_minutes") or 0), task_id))
     if "task_type" in data:
         conn.execute("UPDATE tasks SET task_type = ? WHERE id = ?", (data.get("task_type", ""), task_id))
+    if "chapter" in data:
+        conn.execute("UPDATE tasks SET chapter = ? WHERE id = ?", (data.get("chapter", ""), task_id))
     conn.commit()
     row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     conn.close()

@@ -548,6 +548,43 @@ h2 {
   color: var(--muted); background: var(--surface2); border-color: var(--border);
 }
 
+/* ── Chapter sub-headers ── */
+.chapter-header {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px 4px 32px !important;
+  background: none !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(42,47,67,0.35) !important;
+  box-shadow: none !important;
+  cursor: default;
+}
+.chapter-header:hover { transform: none !important; border-color: rgba(42,47,67,0.35) !important; box-shadow: none !important; }
+.chapter-header-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  flex: 1;
+}
+.chapter-select-btn {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.chapter-select-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+.chapter-header.all-selected .chapter-select-btn {
+  color: var(--accent); background: var(--accent-dim); border-color: rgba(124,117,255,0.4);
+}
+
 .tag-type {
   font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
   color: var(--accent-light); background: var(--accent-dim);
@@ -632,6 +669,7 @@ body.drag-selecting * { cursor: crosshair !important; }
 .batch-edit-title:focus { border-color: var(--accent); }
 .batch-edit-title::placeholder { color: var(--muted); }
 .batch-edit-category { width: 90px; }
+.batch-edit-chapter  { width: 100px; }
 .batch-edit-estimate { width: 76px; }
 #batch-save { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
 #batch-save:hover { background: var(--accent-light) !important; border-color: var(--accent-light) !important; }
