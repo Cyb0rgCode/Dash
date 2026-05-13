@@ -19,8 +19,36 @@ def get_tasks():
     rows = conn.execute(
         "SELECT * FROM tasks ORDER BY completed ASC, priority DESC, created_at DESC"
     ).fetchall()
+    tasks = []
+    for row in rows:
+        task = dict(row)
+        task["time_logged"] = conn.execute(
+            "SELECT COALESCE(SUM(duration_minutes), 0) FROM task_logs WHERE task_id = ?",
+            (task["id"],),
+        ).fetchone()[0]
+        tasks.append(task)
     conn.close()
-    return jsonify([dict(r) for r in rows])
+    return jsonify(tasks)
+
+
+@app.route("/api/tasks/<int:task_id>/log", methods=["POST"])
+def log_task_time(task_id):
+    minutes = int(request.json.get("minutes", 0))
+    if minutes <= 0:
+        return jsonify({"error": "minutes must be positive"}), 400
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO task_logs (task_id, duration_minutes) VALUES (?, ?)",
+        (task_id, minutes),
+    )
+    conn.commit()
+    task = dict(conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone())
+    task["time_logged"] = conn.execute(
+        "SELECT COALESCE(SUM(duration_minutes), 0) FROM task_logs WHERE task_id = ?",
+        (task_id,),
+    ).fetchone()[0]
+    conn.close()
+    return jsonify(task)
 
 
 @app.route("/api/tasks", methods=["POST"])
@@ -28,8 +56,11 @@ def create_task():
     data = request.json
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO tasks (title, priority, deadline) VALUES (?, ?, ?)",
-        (data["title"], data.get("priority", "medium"), data.get("deadline")),
+        "INSERT INTO tasks (title, priority, deadline, urgent, important, category, estimated_minutes, task_type, chapter) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (data["title"], data.get("priority", "medium"), data.get("deadline"),
+         int(bool(data.get("urgent", False))), int(bool(data.get("important", False))),
+         data.get("category", ""), int(data.get("estimated_minutes", 0)),
+         data.get("task_type", ""), data.get("chapter", "")),
     )
     conn.commit()
     row = conn.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -51,6 +82,20 @@ def update_task(task_id):
         conn.execute("UPDATE tasks SET title = ? WHERE id = ?", (data["title"], task_id))
     if "priority" in data:
         conn.execute("UPDATE tasks SET priority = ? WHERE id = ?", (data["priority"], task_id))
+    if "urgent" in data:
+        conn.execute("UPDATE tasks SET urgent = ? WHERE id = ?", (int(bool(data["urgent"])), task_id))
+    if "important" in data:
+        conn.execute("UPDATE tasks SET important = ? WHERE id = ?", (int(bool(data["important"])), task_id))
+    if "deadline" in data:
+        conn.execute("UPDATE tasks SET deadline = ? WHERE id = ?", (data.get("deadline"), task_id))
+    if "category" in data:
+        conn.execute("UPDATE tasks SET category = ? WHERE id = ?", (data.get("category", ""), task_id))
+    if "estimated_minutes" in data:
+        conn.execute("UPDATE tasks SET estimated_minutes = ? WHERE id = ?", (int(data.get("estimated_minutes") or 0), task_id))
+    if "task_type" in data:
+        conn.execute("UPDATE tasks SET task_type = ? WHERE id = ?", (data.get("task_type", ""), task_id))
+    if "chapter" in data:
+        conn.execute("UPDATE tasks SET chapter = ? WHERE id = ?", (data.get("chapter", ""), task_id))
     conn.commit()
     row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     conn.close()
@@ -61,50 +106,6 @@ def update_task(task_id):
 def delete_task(task_id):
     conn = get_db()
     conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-    conn.commit()
-    conn.close()
-    return "", 204
-
-
-# ── Time Logs ──────────────────────────────────────────────────────────────────
-
-@app.route("/api/time-logs", methods=["GET"])
-def get_time_logs():
-    days = request.args.get("days", 7, type=int)
-    since = str(date.today() - timedelta(days=days - 1))
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM time_logs WHERE log_date >= ? ORDER BY log_date DESC, id DESC",
-        (since,),
-    ).fetchall()
-    conn.close()
-    return jsonify([dict(r) for r in rows])
-
-
-@app.route("/api/time-logs", methods=["POST"])
-def create_time_log():
-    data = request.json
-    conn = get_db()
-    cur = conn.execute(
-        "INSERT INTO time_logs (activity, category, duration_minutes, log_date, notes) VALUES (?, ?, ?, ?, ?)",
-        (
-            data["activity"],
-            data.get("category", "general"),
-            int(data["duration_minutes"]),
-            data.get("log_date", str(date.today())),
-            data.get("notes", ""),
-        ),
-    )
-    conn.commit()
-    row = conn.execute("SELECT * FROM time_logs WHERE id = ?", (cur.lastrowid,)).fetchone()
-    conn.close()
-    return jsonify(dict(row)), 201
-
-
-@app.route("/api/time-logs/<int:log_id>", methods=["DELETE"])
-def delete_time_log(log_id):
-    conn = get_db()
-    conn.execute("DELETE FROM time_logs WHERE id = ?", (log_id,))
     conn.commit()
     conn.close()
     return "", 204
@@ -260,29 +261,30 @@ def analytics():
     conn = get_db()
     today = date.today()
 
-    # Time by category over last 7 days
     since = str(today - timedelta(days=6))
-    time_by_category = conn.execute(
-        """SELECT category, SUM(duration_minutes) as total
-           FROM time_logs WHERE log_date >= ?
-           GROUP BY category ORDER BY total DESC""",
-        (since,),
-    ).fetchall()
 
-    # Daily time totals over last 7 days
+    # Daily time totals from task logs over last 7 days
     daily_time = conn.execute(
-        """SELECT log_date, SUM(duration_minutes) as total
-           FROM time_logs WHERE log_date >= ?
-           GROUP BY log_date ORDER BY log_date ASC""",
+        """SELECT logged_at as date, SUM(duration_minutes) as total
+           FROM task_logs WHERE logged_at >= ?
+           GROUP BY logged_at ORDER BY logged_at ASC""",
         (since,),
     ).fetchall()
-
-    # Fill in missing days with 0
-    daily_map = {r["log_date"]: r["total"] for r in daily_time}
+    daily_map = {r["date"]: r["total"] for r in daily_time}
     daily_filled = []
     for i in range(7):
         d = str(today - timedelta(days=6 - i))
         daily_filled.append({"date": d, "total": daily_map.get(d, 0)})
+
+    # Time by task priority over last 7 days
+    time_by_category = conn.execute(
+        """SELECT t.priority as category, SUM(tl.duration_minutes) as total
+           FROM task_logs tl
+           JOIN tasks t ON tl.task_id = t.id
+           WHERE tl.logged_at >= ?
+           GROUP BY t.priority ORDER BY total DESC""",
+        (since,),
+    ).fetchall()
 
     # Task completion stats
     task_stats = conn.execute(
@@ -315,6 +317,43 @@ def analytics():
     })
 
 
+# ── Forecast ───────────────────────────────────────────────────────────────────
+
+@app.route("/api/forecast")
+def get_forecast():
+    conn = get_db()
+    today = date.today()
+    since = str(today - timedelta(days=59))  # 60 days of context
+
+    rows = conn.execute(
+        """SELECT logged_at AS date, SUM(duration_minutes) AS total
+           FROM task_logs WHERE logged_at >= ?
+           GROUP BY logged_at ORDER BY logged_at ASC""",
+        (since,),
+    ).fetchall()
+    conn.close()
+
+    daily_map = {r["date"]: float(r["total"]) for r in rows}
+    historical = [
+        daily_map.get(str(today - timedelta(days=59 - i)), 0.0)
+        for i in range(60)
+    ]
+
+    try:
+        from predictor import forecast as run_forecast
+        predictions = run_forecast(historical, horizon=7)
+    except Exception as exc:
+        return jsonify({"error": str(exc), "forecast": []}), 200
+
+    future_dates = [str(today + timedelta(days=i + 1)) for i in range(7)]
+    return jsonify({
+        "forecast": [
+            {"date": d, "value": round(v, 1)}
+            for d, v in zip(future_dates, predictions)
+        ]
+    })
+
+
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, threaded=True)

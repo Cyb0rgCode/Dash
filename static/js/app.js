@@ -11,10 +11,34 @@ async function api(path, method = "GET", body = null) {
   return res.json();
 }
 
-function fmtMinutes(mins) {
+function fmtTime(mins) {
+  if (!mins) return "";
   const h = Math.floor(mins / 60);
   const m = mins % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5)  return "Burning the midnight oil";
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  if (h < 22) return "Good evening";
+  return "Late night focus";
+}
+
+function countUp(el, target, { decimals = 0, suffix = "", duration = 700 } = {}) {
+  const startText = el.textContent.replace(/[^\d.-]/g, "");
+  const start = parseFloat(startText) || 0;
+  const startTime = performance.now();
+  function tick(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const value = start + (target - start) * eased;
+    el.textContent = (decimals ? value.toFixed(decimals) : Math.round(value)) + suffix;
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 }
 
 function today() {
@@ -43,93 +67,241 @@ $$(".nav-btn").forEach(btn => {
     activeTab = btn.dataset.tab;
     $(`#tab-${activeTab}`).classList.add("active");
     if (activeTab === "dashboard") loadDashboard();
-    if (activeTab === "tasks") loadTasks();
-    if (activeTab === "time") loadLogs();
-    if (activeTab === "habits") { loadHabits(); loadGoals(); }
+    if (activeTab === "tasks")    loadTasks();
+    if (activeTab === "habits")   { loadHabits(); loadGoals(); }
+    if (activeTab === "matrix")   loadMatrix();
   });
 });
 
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 
 let dailyChart = null;
-let categoryChart = null;
+let priorityChart = null;
 
 async function loadDashboard() {
-  const [analytics, tasks, logs] = await Promise.all([
+  const [analytics, tasks] = await Promise.all([
     api("/api/analytics"),
     api("/api/tasks"),
-    api("/api/time-logs?days=1"),
   ]);
 
   const todayStr = today();
   const tasksDoneToday = tasks.filter(t => t.completed && t.completed_at === todayStr).length;
-  const timeToday = logs
-    .filter(l => l.log_date === todayStr)
-    .reduce((s, l) => s + l.duration_minutes, 0);
   const pending = analytics.task_stats.pending;
 
-  $("#stat-tasks-done").textContent = tasksDoneToday;
-  $("#stat-time-today").textContent = (timeToday / 60).toFixed(1) + "h";
-  $("#stat-habit-rate").textContent = analytics.habit_completion_rate + "%";
-  $("#stat-pending").textContent = pending;
+  // Hero greeting + meta
+  $("#greeting").textContent = greeting();
+  const dateStr = new Date().toLocaleDateString(undefined, {
+    weekday: "long", month: "long", day: "numeric",
+  });
+  const metaBits = [dateStr];
+  if (pending > 0) metaBits.push(`${pending} task${pending === 1 ? "" : "s"} on your plate`);
+  else metaBits.push("Inbox zero — nice");
+  $("#dashboard-meta").textContent = metaBits.join(" · ");
+
+  // Today's focus: top-priority pending task
+  renderFocusBanner(tasks);
+
+  // Animated count-up on stat numbers
+  countUp($("#stat-tasks-done"), tasksDoneToday);
+  countUp($("#stat-habit-rate"), analytics.habit_completion_rate, { suffix: "%" });
+  countUp($("#stat-pending"), pending);
 
   renderDailyChart(analytics.daily_time);
-  renderCategoryChart(analytics.time_by_category);
+  renderPriorityChart(analytics.time_by_category);
+  loadForecast();
+}
+
+async function loadForecast() {
+  const titleEl = $("#chart-daily").closest(".chart-card").querySelector("h2");
+  const badge = document.createElement("span");
+  badge.className = "forecast-badge loading";
+  badge.textContent = "Loading forecast…";
+  titleEl.appendChild(badge);
+
+  try {
+    const data = await api("/api/forecast");
+    badge.remove();
+    if (data.forecast && data.forecast.length) {
+      overlayForecast(data.forecast);
+    }
+  } catch (_) {
+    badge.textContent = "Forecast unavailable";
+    badge.classList.add("error");
+  }
+}
+
+function overlayForecast(forecastData) {
+  if (!dailyChart) return;
+
+  const newLabels = forecastData.map(f =>
+    new Date(f.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric" })
+  );
+  const newValues = forecastData.map(f => f.value);
+  const histLen = dailyChart.data.labels.length;
+
+  // Extend labels and pad existing bar dataset with nulls
+  dailyChart.data.labels = [...dailyChart.data.labels, ...newLabels];
+  dailyChart.data.datasets[0].data = [
+    ...dailyChart.data.datasets[0].data,
+    ...Array(7).fill(null),
+  ];
+
+  // Bridge point: connect last historical bar to forecast line
+  const lastVal = dailyChart.data.datasets[0].data[histLen - 1] ?? 0;
+  const lineData = [
+    ...Array(histLen - 1).fill(null),
+    lastVal,
+    ...newValues,
+  ];
+
+  dailyChart.data.datasets.push({
+    type: "line",
+    label: "Forecast",
+    data: lineData,
+    borderColor: "rgba(106,247,200,0.9)",
+    backgroundColor: "rgba(106,247,200,0.08)",
+    borderWidth: 2,
+    borderDash: [6, 4],
+    pointRadius: 4,
+    pointBackgroundColor: "rgba(106,247,200,1)",
+    pointBorderColor: "#0a0a0f",
+    pointBorderWidth: 2,
+    tension: 0.35,
+    fill: false,
+  });
+
+  dailyChart.update();
+
+  // Update chart title
+  const titleEl = $("#chart-daily").closest(".chart-card").querySelector("h2");
+  const badge = document.createElement("span");
+  badge.className = "forecast-badge";
+  badge.textContent = "7d forecast";
+  titleEl.appendChild(badge);
 }
 
 function renderDailyChart(data) {
-  const ctx = $("#chart-daily").getContext("2d");
+  const canvas = $("#chart-daily");
+  const ctx = canvas.getContext("2d");
   if (dailyChart) dailyChart.destroy();
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, 220);
+  gradient.addColorStop(0, "rgba(124,106,247,0.95)");
+  gradient.addColorStop(1, "rgba(124,106,247,0.2)");
+  const hoverGrad = ctx.createLinearGradient(0, 0, 0, 220);
+  hoverGrad.addColorStop(0, "rgba(157,143,255,1)");
+  hoverGrad.addColorStop(1, "rgba(106,247,200,0.4)");
+
   dailyChart = new Chart(ctx, {
     type: "bar",
     data: {
-      labels: data.map(d => new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })),
+      labels: data.map(d => new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric" })),
       datasets: [{
-        label: "Minutes",
         data: data.map(d => d.total),
-        backgroundColor: "rgba(108,99,255,0.7)",
-        borderRadius: 6,
+        backgroundColor: gradient,
+        hoverBackgroundColor: hoverGrad,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 48,
       }],
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
+      animation: { duration: 600, easing: "easeOutCubic" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "rgba(18,18,26,0.97)",
+          borderColor: "rgba(124,106,247,0.4)",
+          borderWidth: 1,
+          titleColor: "#e8e8f0",
+          bodyColor: "#e8e8f0",
+          padding: 10,
+          cornerRadius: 10,
+          displayColors: false,
+          callbacks: { label: c => fmtTime(c.parsed.y) || "0m" },
+        },
+      },
       scales: {
-        x: { ticks: { color: "#7c8499" }, grid: { color: "#2e3347" } },
-        y: { ticks: { color: "#7c8499" }, grid: { color: "#2e3347" }, beginAtZero: true },
+        x: { ticks: { color: "#6060a0", font: { size: 11, family: "JetBrains Mono" } }, grid: { display: false } },
+        y: { ticks: { color: "#6060a0", font: { size: 11, family: "JetBrains Mono" } }, grid: { color: "rgba(30,30,46,0.8)" }, beginAtZero: true, border: { display: false } },
       },
     },
   });
 }
 
-function renderCategoryChart(data) {
-  const ctx = $("#chart-category").getContext("2d");
-  if (categoryChart) categoryChart.destroy();
+function renderPriorityChart(data) {
+  const ctx = $("#chart-priority").getContext("2d");
+  if (priorityChart) priorityChart.destroy();
   if (!data.length) return;
-  const colors = ["#6c63ff","#22c55e","#f59e0b","#ef4444","#38bdf8","#e879f9"];
-  categoryChart = new Chart(ctx, {
+  const colorMap = { high: "#f76a8c", medium: "#f7c76a", low: "#6af7c8" };
+  const colors = data.map(d => colorMap[d.category] || "#7c75ff");
+  priorityChart = new Chart(ctx, {
     type: "doughnut",
     data: {
-      labels: data.map(d => d.category),
+      labels: data.map(d => d.category.charAt(0).toUpperCase() + d.category.slice(1)),
       datasets: [{
         data: data.map(d => d.total),
-        backgroundColor: colors.slice(0, data.length),
-        borderWidth: 0,
+        backgroundColor: colors,
+        borderColor: "#0a0a0f",
+        borderWidth: 3,
+        hoverOffset: 8,
       }],
     },
     options: {
       responsive: true,
+      cutout: "65%",
+      animation: { animateRotate: true, duration: 600 },
       plugins: {
-        legend: { position: "bottom", labels: { color: "#e2e8f0", boxWidth: 12, padding: 16 } },
+        legend: {
+          position: "bottom",
+          labels: { color: "#e8e8f0", boxWidth: 10, boxHeight: 10, padding: 14, usePointStyle: true, font: { size: 11, family: "JetBrains Mono", weight: "600" } },
+        },
+        tooltip: {
+          backgroundColor: "rgba(18,18,26,0.97)",
+          borderColor: "rgba(124,106,247,0.4)",
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 10,
+          callbacks: { label: c => ` ${c.label}: ${fmtTime(c.parsed)}` },
+        },
       },
     },
   });
+}
+
+function renderFocusBanner(tasks) {
+  const pending = tasks.filter(t => !t.completed);
+  // Priority preference: urgent+important > high > medium > low
+  const score = t => {
+    let s = 0;
+    if (t.urgent && t.important) s += 100;
+    if (t.priority === "high") s += 30;
+    else if (t.priority === "medium") s += 10;
+    if (t.deadline) s += 5;
+    return s;
+  };
+  pending.sort((a, b) => score(b) - score(a));
+  const top = pending[0];
+  const taskEl = $("#focus-task");
+  const metaEl = $("#focus-meta");
+  if (!top) {
+    taskEl.textContent = "All clear — add a task to plan your day";
+    metaEl.innerHTML = "";
+    return;
+  }
+  taskEl.textContent = top.title;
+  const others = pending.length - 1;
+  metaEl.innerHTML = others > 0
+    ? `<strong>${others}</strong> more pending`
+    : "Last one standing";
 }
 
 // ── Tasks ──────────────────────────────────────────────────────────────────────
 
 let allTasks = [];
 let taskFilter = "all";
+let selectedIds = new Set();
 
 async function loadTasks() {
   allTasks = await api("/api/tasks");
@@ -144,20 +316,89 @@ function renderTasks() {
 
   if (!tasks.length) {
     list.innerHTML = '<li style="color:var(--muted);justify-content:center;">No tasks here</li>';
+    updateBatchBar();
     return;
   }
 
-  list.innerHTML = tasks.map(t => `
-    <li class="${t.completed ? "done" : ""}" data-id="${t.id}">
-      <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete">
-        ${t.completed ? "✓" : ""}
-      </button>
-      <span class="item-title">${escHtml(t.title)}</span>
-      <span class="badge badge-${t.priority}">${t.priority}</span>
-      ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
-      <button class="btn-icon" data-action="delete" title="Delete">✕</button>
-    </li>
-  `).join("");
+  // Group by category
+  const groups = {};
+  tasks.forEach(t => {
+    const key = t.category || "Other";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  });
+  const sortedKeys = Object.keys(groups).sort((a, b) =>
+    a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)
+  );
+
+  let html = "";
+  for (const cat of sortedKeys) {
+    const catTasks = groups[cat];
+    const allSel = catTasks.every(t => selectedIds.has(t.id));
+    html += `<li class="category-header${allSel ? " all-selected" : ""}" data-category="${escHtml(cat)}">
+      <span class="category-header-name">${escHtml(cat)}</span>
+      <span class="category-header-count">${catTasks.length} task${catTasks.length === 1 ? "" : "s"}</span>
+      <button type="button" class="category-select-btn" data-action="select-category">${allSel ? "Deselect all" : "Select all"}</button>
+    </li>`;
+
+    // Sub-group by chapter within the category
+    const chGroups = {};
+    catTasks.forEach(t => {
+      const ch = t.chapter || "";
+      if (!chGroups[ch]) chGroups[ch] = [];
+      chGroups[ch].push(t);
+    });
+    const chKeys = Object.keys(chGroups).sort((a, b) =>
+      a === "" ? 1 : b === "" ? -1 : a.localeCompare(b, undefined, { numeric: true })
+    );
+
+    for (const ch of chKeys) {
+      if (ch) {
+        const chTasks = chGroups[ch];
+        const chAllSel = chTasks.every(t => selectedIds.has(t.id));
+        html += `<li class="chapter-header${chAllSel ? " all-selected" : ""}" data-category="${escHtml(cat)}" data-chapter="${escHtml(ch)}">
+          <span class="chapter-header-name">${escHtml(ch)}</span>
+          <button type="button" class="chapter-select-btn" data-action="select-chapter">${chAllSel ? "Deselect" : "Select"}</button>
+        </li>`;
+      }
+      chGroups[ch].forEach(t => {
+        const urgCls = t.urgent && t.important ? " li-both"
+          : t.important ? " li-important"
+          : t.urgent    ? " li-urgent" : "";
+        html += `<li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}${urgCls}" data-id="${t.id}">
+          <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete">${t.completed ? "✓" : ""}</button>
+          <span class="item-title">${escHtml(t.title)}</span>
+          ${t.task_type ? `<span class="tag-type">${escHtml(t.task_type)}</span>` : ""}
+          ${t.urgent ? '<span class="tag-urgent">! urgent</span>' : ""}
+          ${t.important ? '<span class="tag-important">★ key</span>' : ""}
+          <span class="badge badge-${t.priority}">${t.priority}</span>
+          ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
+          ${t.estimated_minutes ? `<span class="estimate-badge">~${fmtTime(t.estimated_minutes)}</span>` : ""}
+          ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
+          <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
+          <button class="btn-icon" data-action="delete" title="Delete">✕</button>
+        </li>`;
+      });
+    }
+  }
+  list.innerHTML = html;
+  updateBatchBar();
+}
+
+// ── Urgent / Important toggles ─────────────────────────────────────────────────
+
+$$(".toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const pressed = btn.getAttribute("aria-pressed") === "true";
+    btn.setAttribute("aria-pressed", String(!pressed));
+  });
+});
+
+function getToggle(id) {
+  return $("#" + id).getAttribute("aria-pressed") === "true";
+}
+function resetToggle(id) {
+  $("#" + id).setAttribute("aria-pressed", "false");
 }
 
 $("#task-form").addEventListener("submit", async e => {
@@ -166,32 +407,82 @@ $("#task-form").addEventListener("submit", async e => {
   if (!title) return;
   const task = await api("/api/tasks", "POST", {
     title,
-    priority: $("#task-priority").value,
-    deadline: $("#task-deadline").value || null,
+    priority:  $("#task-priority").value,
+    deadline:  $("#task-deadline").value || null,
+    urgent:    getToggle("task-urgent"),
+    important: getToggle("task-important"),
   });
   allTasks.unshift(task);
   renderTasks();
+  toast("Task added");
   $("#task-title").value = "";
   $("#task-deadline").value = "";
+  resetToggle("task-urgent");
+  resetToggle("task-important");
 });
 
 $("#task-list").addEventListener("click", async e => {
-  const li = e.target.closest("li");
+  const action = e.target.dataset.action || e.target.closest("[data-action]")?.dataset.action;
+
+  if (action === "select-category") {
+    const header = e.target.closest(".category-header");
+    const cat = header?.dataset.category;
+    if (!cat) return;
+    let catTasks = allTasks.filter(t => (t.category || "Other") === cat);
+    if (taskFilter === "pending") catTasks = catTasks.filter(t => !t.completed);
+    if (taskFilter === "done")    catTasks = catTasks.filter(t => t.completed);
+    const allSel = catTasks.length > 0 && catTasks.every(t => selectedIds.has(t.id));
+    catTasks.forEach(t => allSel ? selectedIds.delete(t.id) : selectedIds.add(t.id));
+    renderTasks();
+    return;
+  }
+
+  if (action === "select-chapter") {
+    const header = e.target.closest(".chapter-header");
+    const cat = header?.dataset.category;
+    const ch  = header?.dataset.chapter;
+    if (!cat || ch === undefined) return;
+    let chTasks = allTasks.filter(t => (t.category || "Other") === cat && (t.chapter || "") === ch);
+    if (taskFilter === "pending") chTasks = chTasks.filter(t => !t.completed);
+    if (taskFilter === "done")    chTasks = chTasks.filter(t => t.completed);
+    const allSel = chTasks.length > 0 && chTasks.every(t => selectedIds.has(t.id));
+    chTasks.forEach(t => allSel ? selectedIds.delete(t.id) : selectedIds.add(t.id));
+    renderTasks();
+    return;
+  }
+
+  const li = e.target.closest("li[data-id]");
   if (!li) return;
   const id = Number(li.dataset.id);
-  const action = e.target.dataset.action || e.target.closest("[data-action]")?.dataset.action;
+
   if (action === "toggle") {
     const task = allTasks.find(t => t.id === id);
     const updated = await api(`/api/tasks/${id}`, "PUT", { completed: !task.completed });
     const idx = allTasks.findIndex(t => t.id === id);
-    allTasks[idx] = updated;
+    allTasks[idx] = { ...updated, time_logged: task.time_logged };
     renderTasks();
   }
   if (action === "delete") {
     await api(`/api/tasks/${id}`, "DELETE");
     allTasks = allTasks.filter(t => t.id !== id);
+    selectedIds.delete(id);
     renderTasks();
+    toast("Task deleted");
   }
+});
+
+$("#task-list").addEventListener("keydown", async e => {
+  if (e.key !== "Enter" || !e.target.classList.contains("log-mins-inline")) return;
+  const li = e.target.closest("li");
+  const id = Number(li.dataset.id);
+  const mins = parseInt(e.target.value, 10);
+  if (!mins || mins < 1) return;
+  e.target.value = "";
+  const updated = await api(`/api/tasks/${id}/log`, "POST", { minutes: mins });
+  const idx = allTasks.findIndex(t => t.id === id);
+  allTasks[idx] = updated;
+  renderTasks();
+  toast(`Logged ${fmtTime(mins)}`);
 });
 
 $$(".filter-btn").forEach(btn => {
@@ -203,92 +494,268 @@ $$(".filter-btn").forEach(btn => {
   });
 });
 
-// ── Time Tracker ───────────────────────────────────────────────────────────────
+// ── Batch actions ──────────────────────────────────────────────────────────────
 
-let timerInterval = null;
-let timerSeconds = 0;
-let timerRunning = false;
+function updateBatchBar() {
+  const bar = $("#batch-bar");
+  const n = selectedIds.size;
+  bar.hidden = n === 0;
+  if (n === 0) return;
 
-function fmtTimer(s) {
-  const h = String(Math.floor(s / 3600)).padStart(2, "0");
-  const m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
-  const sec = String(s % 60).padStart(2, "0");
-  return `${h}:${m}:${sec}`;
+  const sel = allTasks.filter(t => selectedIds.has(t.id));
+  $("#batch-count").textContent = `${n} selected`;
+
+  // Done button label reflects current state
+  const allDone = sel.length > 0 && sel.every(t => t.completed);
+  $("#batch-done").textContent = allDone ? "Mark undone" : "Mark done";
+
+  if (n === 1) {
+    const task = sel[0];
+    if (task) {
+      $("#batch-edit-title").value = task.title;
+      $("#batch-edit-category").value = task.category || "";
+      $("#batch-edit-chapter").value = task.chapter || "";
+      $("#batch-edit-type").value = task.task_type || "";
+      $("#batch-edit-priority").value = task.priority;
+      $("#batch-edit-deadline").value = task.deadline || "";
+      $("#batch-edit-estimate").value = task.estimated_minutes || "";
+      $("#batch-edit-urgent").setAttribute("aria-pressed", task.urgent ? "true" : "false");
+      $("#batch-edit-important").setAttribute("aria-pressed", task.important ? "true" : "false");
+    }
+    $("#batch-edit").hidden = false;
+    $("#batch-multi").hidden = true;
+  } else {
+    // Show aggregate urgent/important state on multi buttons
+    const allUrgent   = sel.every(t => t.urgent);
+    const someUrgent  = sel.some(t => t.urgent);
+    const allImp      = sel.every(t => t.important);
+    const someImp     = sel.some(t => t.important);
+    $("#batch-urgent").dataset.state   = allUrgent  ? "all" : someUrgent ? "some" : "none";
+    $("#batch-important").dataset.state = allImp    ? "all" : someImp    ? "some" : "none";
+    $("#batch-edit").hidden = true;
+    $("#batch-multi").hidden = false;
+  }
 }
 
-$("#timer-start").addEventListener("click", () => {
-  if (timerRunning) return;
-  timerRunning = true;
-  timerSeconds = 0;
-  $("#timer-display").textContent = "00:00:00";
-  $("#timer-start").disabled = true;
-  $("#timer-stop").disabled = false;
-  timerInterval = setInterval(() => {
-    timerSeconds++;
-    $("#timer-display").textContent = fmtTimer(timerSeconds);
-  }, 1000);
+
+$("#batch-save").addEventListener("click", async () => {
+  const id = [...selectedIds][0];
+  if (!id) return;
+  const title = $("#batch-edit-title").value.trim();
+  if (!title) return;
+  const category          = $("#batch-edit-category").value.trim();
+  const chapter           = $("#batch-edit-chapter").value.trim();
+  const task_type         = $("#batch-edit-type").value;
+  const priority          = $("#batch-edit-priority").value;
+  const deadline          = $("#batch-edit-deadline").value || null;
+  const estimated_minutes = parseInt($("#batch-edit-estimate").value, 10) || 0;
+  const urgent            = $("#batch-edit-urgent").getAttribute("aria-pressed") === "true";
+  const important         = $("#batch-edit-important").getAttribute("aria-pressed") === "true";
+  const updated = await api(`/api/tasks/${id}`, "PUT", { title, category, chapter, task_type, priority, deadline, estimated_minutes, urgent, important });
+  const idx = allTasks.findIndex(t => t.id === id);
+  allTasks[idx] = { ...updated, time_logged: allTasks[idx].time_logged };
+  selectedIds.clear();
+  renderTasks();
+  toast("Task updated");
 });
 
-$("#timer-stop").addEventListener("click", async () => {
-  if (!timerRunning) return;
-  clearInterval(timerInterval);
-  timerRunning = false;
-  $("#timer-start").disabled = false;
-  $("#timer-stop").disabled = true;
+$("#batch-clear").addEventListener("click", () => {
+  selectedIds.clear();
+  renderTasks();
+});
 
-  const mins = Math.max(1, Math.round(timerSeconds / 60));
-  const activity = $("#timer-activity").value.trim() || "Untitled session";
-  await api("/api/time-logs", "POST", {
-    activity,
-    category: $("#timer-category").value,
-    duration_minutes: mins,
-    log_date: today(),
+$("#batch-priority").addEventListener("change", async e => {
+  const priority = e.target.value;
+  if (!priority) return;
+  e.target.value = "";
+  const ids = [...selectedIds];
+  await Promise.all(ids.map(id => api(`/api/tasks/${id}`, "PUT", { priority })));
+  ids.forEach(id => {
+    const idx = allTasks.findIndex(t => t.id === id);
+    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], priority };
   });
-  timerSeconds = 0;
-  $("#timer-display").textContent = "00:00:00";
-  loadLogs();
+  renderTasks();
+  toast(`Priority set to ${priority} for ${ids.length} task${ids.length === 1 ? "" : "s"}`);
 });
 
-$("#log-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  const activity = $("#log-activity").value.trim();
-  if (!activity) return;
-  await api("/api/time-logs", "POST", {
-    activity,
-    category: $("#log-category").value,
-    duration_minutes: Number($("#log-duration").value),
-    log_date: $("#log-date").value || today(),
+$("#batch-urgent").addEventListener("click", async () => {
+  const sel = allTasks.filter(t => selectedIds.has(t.id));
+  const urgent = !sel.every(t => t.urgent);
+  await Promise.all(sel.map(t => api(`/api/tasks/${t.id}`, "PUT", { urgent })));
+  sel.forEach(t => {
+    const idx = allTasks.findIndex(a => a.id === t.id);
+    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], urgent };
   });
-  $("#log-activity").value = "";
-  $("#log-duration").value = "";
-  loadLogs();
+  renderTasks();
+  toast(`${sel.length} tasks marked ${urgent ? "urgent" : "not urgent"}`);
 });
 
-async function loadLogs() {
-  const logs = await api("/api/time-logs?days=7");
-  const list = $("#log-list");
-  if (!logs.length) {
-    list.innerHTML = '<li style="color:var(--muted);justify-content:center;">No entries yet</li>';
+$("#batch-important").addEventListener("click", async () => {
+  const sel = allTasks.filter(t => selectedIds.has(t.id));
+  const important = !sel.every(t => t.important);
+  await Promise.all(sel.map(t => api(`/api/tasks/${t.id}`, "PUT", { important })));
+  sel.forEach(t => {
+    const idx = allTasks.findIndex(a => a.id === t.id);
+    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], important };
+  });
+  renderTasks();
+  toast(`${sel.length} tasks marked ${important ? "important" : "not important"}`);
+});
+
+$("#batch-done").addEventListener("click", async () => {
+  const sel = allTasks.filter(t => selectedIds.has(t.id));
+  if (!sel.length) return;
+  const completed = !sel.every(t => t.completed);
+  await Promise.all(sel.map(t => api(`/api/tasks/${t.id}`, "PUT", { completed })));
+  const todayStr = today();
+  sel.forEach(t => {
+    const idx = allTasks.findIndex(a => a.id === t.id);
+    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], completed: completed ? 1 : 0, completed_at: completed ? todayStr : null };
+  });
+  selectedIds.clear();
+  renderTasks();
+  toast(completed
+    ? `${sel.length} task${sel.length === 1 ? "" : "s"} done`
+    : `${sel.length} task${sel.length === 1 ? "" : "s"} reopened`);
+});
+
+$("#batch-delete").addEventListener("click", async () => {
+  const ids = [...selectedIds];
+  await Promise.all(ids.map(id => api(`/api/tasks/${id}`, "DELETE")));
+  allTasks = allTasks.filter(t => !selectedIds.has(t.id));
+  selectedIds.clear();
+  renderTasks();
+  toast(`Deleted ${ids.length} task${ids.length === 1 ? "" : "s"}`);
+});
+
+// ── JSON Import ────────────────────────────────────────────────────────────────
+
+const AI_PROMPT = `You are a productivity assistant. I will paste files, documents, syllabi, problem sets, schedules, or any content below. Extract EVERY actionable item as a task.
+
+Return ONLY a valid JSON array — no markdown, no explanation. Each object must have:
+
+- "title": string — specific task using exact names/numbers from the content (e.g. "Exercises 1–8", not "Do homework")
+- "category": string — the course or subject name exactly as it appears (e.g. "Math 201", "Physics II", "CS50"). For non-class items use "Work", "Personal", "Health", etc.
+- "chapter": string | null — the chapter, section, or topic within the course (e.g. "Chapter 3", "Week 5", "Unit 2: Integration"). null if not applicable
+- "task_type": one of — "exercise" | "quiz" | "assignment" | "reading" | "lab" | "project" | "lecture" | "other"
+- "priority": "high" | "medium" | "low" — based on deadline proximity and grade weight
+- "urgent": false — default false; only set true if due within 48 hours or explicitly flagged urgent in the content
+- "important": false — default false; only set true if it directly affects a grade, major milestone, or stated goal
+- "deadline": "YYYY-MM-DD" | null — extract exact dates; null if none stated
+- "estimated_minutes": number — realistic completion time (reading ≈ 2 min/page, per problem ≈ 20–40 min, coding task ≈ 45–120 min, short drill ≈ 15–30 min)
+
+Rules:
+- urgent and important start at false — raise them only when the content clearly justifies it
+- Break compound items into individual tasks (one problem set = one task per section if separable)
+- estimated_minutes must be a positive integer
+
+[PASTE YOUR FILES, SYLLABUS, PROBLEM SET, SCHEDULE, OR ANY CONTENT BELOW]
+`;
+
+$("#task-import-input").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = "";
+  let data;
+  try {
+    const text = await file.text();
+    data = JSON.parse(text);
+  } catch {
+    toast("Invalid JSON file", "error");
     return;
   }
-  list.innerHTML = logs.map(l => `
-    <li data-id="${l.id}">
-      <span class="item-title">${escHtml(l.activity)}</span>
-      <span class="badge badge-medium">${escHtml(l.category)}</span>
-      <span class="item-meta">${fmtMinutes(l.duration_minutes)}</span>
-      <span class="item-meta">${l.log_date}</span>
-      <button class="btn-icon" data-action="delete" title="Delete">✕</button>
-    </li>
-  `).join("");
-}
-
-$("#log-list").addEventListener("click", async e => {
-  const btn = e.target.closest("[data-action='delete']");
-  if (!btn) return;
-  const id = Number(btn.closest("li").dataset.id);
-  await api(`/api/time-logs/${id}`, "DELETE");
-  loadLogs();
+  if (!Array.isArray(data) || !data.length) {
+    toast("JSON must be an array of tasks", "error");
+    return;
+  }
+  const valid = data.filter(t => t && typeof t.title === "string" && t.title.trim());
+  if (!valid.length) {
+    toast("No valid tasks found (each needs a title)", "error");
+    return;
+  }
+  let added = 0;
+  for (const t of valid) {
+    try {
+      const task = await api("/api/tasks", "POST", {
+        title:              t.title.trim(),
+        category:           t.category ? String(t.category).trim() : "",
+        chapter:            t.chapter  ? String(t.chapter).trim()  : "",
+        task_type:          t.task_type ? String(t.task_type).trim() : "",
+        priority:           ["high", "medium", "low"].includes(t.priority) ? t.priority : "medium",
+        deadline:           t.deadline || null,
+        urgent:             Boolean(t.urgent),
+        important:          Boolean(t.important),
+        estimated_minutes:  parseInt(t.estimated_minutes, 10) || 0,
+      });
+      allTasks.unshift(task);
+      added++;
+    } catch (_) {}
+  }
+  renderTasks();
+  toast(`Imported ${added} task${added === 1 ? "" : "s"}`, added ? "success" : "error");
 });
+
+$("#copy-prompt-btn").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(AI_PROMPT);
+    toast("Prompt copied — paste it into any AI chat");
+  } catch {
+    toast("Copy failed — check browser permissions", "error");
+  }
+});
+
+// ── Drag-to-select (left-click hold + drag) ────────────────────────────────────
+
+let isDragSelecting = false;
+let dragSelectMode = null; // "select" | "deselect"
+let dragAnchorEl   = null;
+let dragStartX = 0, dragStartY = 0;
+const DRAG_THRESHOLD = 6;
+
+document.addEventListener("mousedown", e => {
+  if (e.button !== 0) return;
+  const li = e.target.closest("#task-list li[data-id]");
+  if (!li || e.target.closest("button, input, select")) return;
+  dragAnchorEl = li;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+});
+
+document.addEventListener("mousemove", e => {
+  if (!dragAnchorEl) return;
+  if (!isDragSelecting) {
+    if (Math.abs(e.clientX - dragStartX) < DRAG_THRESHOLD &&
+        Math.abs(e.clientY - dragStartY) < DRAG_THRESHOLD) return;
+    isDragSelecting = true;
+    document.body.classList.add("drag-selecting");
+    const id = Number(dragAnchorEl.dataset.id);
+    dragSelectMode = selectedIds.has(id) ? "deselect" : "select";
+    applyDragSelect(dragAnchorEl, id);
+  }
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const li = el?.closest("#task-list li[data-id]");
+  if (li) applyDragSelect(li, Number(li.dataset.id));
+});
+
+document.addEventListener("mouseup", e => {
+  if (e.button !== 0) return;
+  dragAnchorEl = null;
+  if (!isDragSelecting) return;
+  isDragSelecting = false;
+  dragSelectMode = null;
+  document.body.classList.remove("drag-selecting");
+});
+
+function applyDragSelect(li, id) {
+  if (dragSelectMode === "select") {
+    selectedIds.add(id);
+    li.classList.add("selected");
+  } else {
+    selectedIds.delete(id);
+    li.classList.remove("selected");
+  }
+  updateBatchBar();
+}
 
 // ── Habits ─────────────────────────────────────────────────────────────────────
 
@@ -317,6 +784,7 @@ $("#habit-form").addEventListener("submit", async e => {
   if (!name) return;
   await api("/api/habits", "POST", { name });
   $("#habit-name").value = "";
+  toast("Habit added");
   loadHabits();
 });
 
@@ -384,6 +852,7 @@ $("#goal-form").addEventListener("submit", async e => {
   $("#goal-target").value = "";
   $("#goal-unit").value = "";
   $("#goal-deadline").value = "";
+  toast("Goal added");
   loadGoals();
 });
 
@@ -399,9 +868,62 @@ $("#goal-list").addEventListener("click", async e => {
   if (action === "save-val") {
     const input = li.querySelector("[data-action='update-val']");
     await api(`/api/goals/${id}`, "PUT", { current_value: Number(input.value) });
+    toast("Progress updated");
     loadGoals();
   }
 });
+
+// ── Eisenhower Matrix ──────────────────────────────────────────────────────────
+
+let matrixTasks = [];
+
+async function loadMatrix() {
+  matrixTasks = await api("/api/tasks");
+  const open = matrixTasks.filter(t => !t.completed);
+  renderMatrixQuadrant("matrix-q1", open.filter(t =>  t.urgent &&  t.important));
+  renderMatrixQuadrant("matrix-q2", open.filter(t => !t.urgent &&  t.important));
+  renderMatrixQuadrant("matrix-q3", open.filter(t =>  t.urgent && !t.important));
+  renderMatrixQuadrant("matrix-q4", open.filter(t => !t.urgent && !t.important));
+}
+
+function renderMatrixQuadrant(listId, tasks) {
+  const list = $(`#${listId}`);
+  if (!tasks.length) {
+    list.innerHTML = '<li class="matrix-empty">No tasks</li>';
+    return;
+  }
+  list.innerHTML = tasks.map(t => `
+    <li class="matrix-task" data-id="${t.id}">
+      <button class="matrix-check" data-action="toggle" title="Mark complete"></button>
+      <span>${escHtml(t.title)}</span>
+      ${t.deadline ? `<span class="item-meta" style="margin-left:auto;font-size:11px">${t.deadline}</span>` : ""}
+    </li>
+  `).join("");
+}
+
+$("#tab-matrix").addEventListener("click", async e => {
+  const btn = e.target.closest("[data-action='toggle']");
+  if (!btn) return;
+  const li = btn.closest(".matrix-task");
+  const id = Number(li.dataset.id);
+  await api(`/api/tasks/${id}`, "PUT", { completed: true });
+  toast("Task done");
+  loadMatrix();
+});
+
+// ── Toast notifications ────────────────────────────────────────────────────────
+
+function toast(msg, type = "success") {
+  const container = $("#toast-container");
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add("fade-out");
+    el.addEventListener("animationend", () => el.remove(), { once: true });
+  }, 2600);
+}
 
 // ── Escape HTML ────────────────────────────────────────────────────────────────
 
@@ -416,6 +938,3 @@ function escHtml(s) {
 // ── Init ───────────────────────────────────────────────────────────────────────
 
 loadDashboard();
-
-// Set today's date as default in log form
-$("#log-date").value = today();

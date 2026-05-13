@@ -57,6 +57,30 @@ def init_db():
             deadline TEXT,
             created_at TEXT NOT NULL DEFAULT (date('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS task_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            duration_minutes INTEGER NOT NULL,
+            logged_at TEXT NOT NULL DEFAULT (date('now')),
+            FOREIGN KEY (task_id) REFERENCES tasks(id)
+        );
     """)
     conn.commit()
+
+    # Migrations — safe to run on existing DBs
+    for col, typedef in [
+        ("urgent",             "INTEGER NOT NULL DEFAULT 0"),
+        ("important",          "INTEGER NOT NULL DEFAULT 0"),
+        ("category",           "TEXT NOT NULL DEFAULT ''"),
+        ("estimated_minutes",  "INTEGER NOT NULL DEFAULT 0"),
+        ("task_type",          "TEXT NOT NULL DEFAULT ''"),
+        ("chapter",            "TEXT NOT NULL DEFAULT ''"),
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {typedef}")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
     conn.close()

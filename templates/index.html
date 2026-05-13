@@ -3,18 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Productivity Dash</title>
+  <title>Husky</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <aside class="sidebar">
-    <div class="logo">Productivity<span>Dash</span></div>
+    <div class="logo">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7.5" height="9" rx="1.5"/>
+          <rect x="13.5" y="3" width="7.5" height="5" rx="1.5"/>
+          <rect x="13.5" y="11" width="7.5" height="10" rx="1.5"/>
+          <rect x="3" y="15" width="7.5" height="6" rx="1.5"/>
+        </svg>
+      </span>
+      <span class="logo-text"><span>Husky</span></span>
+    </div>
     <nav>
-      <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
-      <button class="nav-btn" data-tab="tasks">Tasks</button>
-      <button class="nav-btn" data-tab="time">Time Tracker</button>
-      <button class="nav-btn" data-tab="habits">Habits &amp; Goals</button>
+      <button class="nav-btn active" data-tab="dashboard"><span class="nav-icon">◈</span><span class="nav-label">Dashboard</span></button>
+      <button class="nav-btn" data-tab="matrix"><span class="nav-icon">⊞</span><span class="nav-label">Matrix</span></button>
+      <button class="nav-btn" data-tab="tasks"><span class="nav-icon">◻</span><span class="nav-label">Tasks</span></button>
+      <button class="nav-btn" data-tab="habits"><span class="nav-icon">◎</span><span class="nav-label">Habits &amp; Goals</span></button>
     </nav>
     <div class="sidebar-date" id="sidebar-date"></div>
   </aside>
@@ -23,12 +36,63 @@
 
     <!-- DASHBOARD -->
     <section id="tab-dashboard" class="tab active">
-      <h1>Dashboard</h1>
+      <header class="page-header">
+        <h1 class="page-title" id="greeting">Hello</h1>
+        <p class="page-subtitle" id="dashboard-meta">Loading your day…</p>
+      </header>
+
+      <div class="focus-banner card" id="focus-banner">
+        <div class="focus-banner-glow"></div>
+        <div class="focus-banner-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="focus-banner-content">
+          <div class="focus-banner-label">Today's focus</div>
+          <div class="focus-banner-task" id="focus-task">Add a task to get started</div>
+        </div>
+        <div class="focus-banner-meta" id="focus-meta"></div>
+      </div>
+
       <div class="stat-cards" id="stat-cards">
-        <div class="card stat"><div class="stat-num" id="stat-tasks-done">—</div><div class="stat-label">Tasks Done Today</div></div>
-        <div class="card stat"><div class="stat-num" id="stat-time-today">—</div><div class="stat-label">Hours Tracked Today</div></div>
-        <div class="card stat"><div class="stat-num" id="stat-habit-rate">—</div><div class="stat-label">Habit Rate (7d)</div></div>
-        <div class="card stat"><div class="stat-num" id="stat-pending">—</div><div class="stat-label">Open Tasks</div></div>
+        <div class="card stat" data-tone="green">
+          <div class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-tasks-done">—</div>
+            <div class="stat-label">Tasks Done Today</div>
+          </div>
+        </div>
+        <div class="card stat" data-tone="yellow">
+          <div class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.06 2-6 .5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-habit-rate">—</div>
+            <div class="stat-label">Habit Rate (7d)</div>
+          </div>
+        </div>
+        <div class="card stat" data-tone="cyan">
+          <div class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+              <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+            </svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-num" id="stat-pending">—</div>
+            <div class="stat-label">Open Tasks</div>
+          </div>
+        </div>
       </div>
       <div class="charts-row">
         <div class="card chart-card">
@@ -36,8 +100,8 @@
           <canvas id="chart-daily"></canvas>
         </div>
         <div class="card chart-card">
-          <h2>Time by Category (last 7 days)</h2>
-          <canvas id="chart-category"></canvas>
+          <h2>Time by Priority (last 7 days)</h2>
+          <canvas id="chart-priority"></canvas>
         </div>
       </div>
     </section>
@@ -53,50 +117,69 @@
           <option value="low">Low</option>
         </select>
         <input id="task-deadline" type="date" title="Deadline (optional)" />
+        <button type="button" id="task-urgent" class="toggle-btn urgent" aria-pressed="false">Urgent</button>
+        <button type="button" id="task-important" class="toggle-btn important" aria-pressed="false">Important</button>
         <button type="submit">Add</button>
       </form>
+      <div class="import-row">
+        <label class="import-btn" for="task-import-input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import JSON
+          <input type="file" id="task-import-input" accept=".json" hidden />
+        </label>
+        <button type="button" id="copy-prompt-btn" class="import-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy AI Prompt
+        </button>
+      </div>
+      <div id="batch-bar" class="batch-bar" hidden>
+        <span id="batch-count"></span>
+        <div id="batch-edit" class="batch-actions" hidden>
+          <input id="batch-edit-title" class="batch-edit-title" type="text" placeholder="Title…" />
+          <input id="batch-edit-category" class="batch-select batch-edit-category" type="text" placeholder="Course / Subject" />
+          <input id="batch-edit-chapter" class="batch-select batch-edit-chapter" type="text" placeholder="Chapter / Section" />
+          <select id="batch-edit-type" class="batch-select">
+            <option value="">Type…</option>
+            <option value="exercise">Exercise</option>
+            <option value="quiz">Quiz</option>
+            <option value="assignment">Assignment</option>
+            <option value="reading">Reading</option>
+            <option value="lab">Lab</option>
+            <option value="project">Project</option>
+            <option value="lecture">Lecture</option>
+            <option value="other">Other</option>
+          </select>
+          <select id="batch-edit-priority" class="batch-select">
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <input id="batch-edit-deadline" type="date" class="batch-select" title="Deadline" />
+          <input id="batch-edit-estimate" class="batch-select batch-edit-estimate" type="number" placeholder="Est. min" min="0" title="Estimated minutes" />
+          <button type="button" id="batch-edit-urgent" class="toggle-btn urgent" aria-pressed="false">Urgent</button>
+          <button type="button" id="batch-edit-important" class="toggle-btn important" aria-pressed="false">Important</button>
+          <button type="button" id="batch-save" class="batch-btn">Save</button>
+        </div>
+        <div id="batch-multi" class="batch-actions" hidden>
+          <select id="batch-priority" class="batch-select">
+            <option value="">Priority…</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <button type="button" id="batch-urgent" class="batch-btn">Urgent</button>
+          <button type="button" id="batch-important" class="batch-btn">Important</button>
+        </div>
+        <button type="button" id="batch-done" class="batch-btn">Mark done</button>
+        <button type="button" id="batch-delete" class="batch-btn danger">Delete</button>
+        <button type="button" id="batch-clear" class="btn-icon" title="Clear selection">✕</button>
+      </div>
       <div class="filter-row">
         <button class="filter-btn active" data-filter="all">All</button>
         <button class="filter-btn" data-filter="pending">Pending</button>
         <button class="filter-btn" data-filter="done">Done</button>
       </div>
       <ul id="task-list" class="item-list"></ul>
-    </section>
-
-    <!-- TIME TRACKER -->
-    <section id="tab-time" class="tab">
-      <h1>Time Tracker</h1>
-      <div class="card timer-card">
-        <div id="timer-display" class="timer-display">00:00:00</div>
-        <div class="timer-controls">
-          <input id="timer-activity" type="text" placeholder="What are you working on?" />
-          <select id="timer-category">
-            <option value="deep work">Deep Work</option>
-            <option value="meetings">Meetings</option>
-            <option value="admin">Admin</option>
-            <option value="learning">Learning</option>
-            <option value="general">General</option>
-          </select>
-          <button id="timer-start" class="btn-green">Start</button>
-          <button id="timer-stop" class="btn-red" disabled>Stop &amp; Save</button>
-        </div>
-      </div>
-      <h2>Log Manual Entry</h2>
-      <form id="log-form" class="input-row">
-        <input id="log-activity" type="text" placeholder="Activity" required />
-        <select id="log-category">
-          <option value="deep work">Deep Work</option>
-          <option value="meetings">Meetings</option>
-          <option value="admin">Admin</option>
-          <option value="learning">Learning</option>
-          <option value="general">General</option>
-        </select>
-        <input id="log-duration" type="number" placeholder="Minutes" min="1" required />
-        <input id="log-date" type="date" />
-        <button type="submit">Log</button>
-      </form>
-      <h2>Recent Logs</h2>
-      <ul id="log-list" class="item-list"></ul>
     </section>
 
     <!-- HABITS & GOALS -->
@@ -127,8 +210,57 @@
       </div>
     </section>
 
+    <!-- EISENHOWER MATRIX -->
+    <section id="tab-matrix" class="tab">
+      <h1>Eisenhower Matrix</h1>
+      <p class="matrix-subtitle">Classify tasks by urgency and importance when creating them in the Tasks tab.</p>
+      <div class="matrix-axis-labels">
+        <div class="axis-col-labels">
+          <span>URGENT</span>
+          <span>NOT URGENT</span>
+        </div>
+      </div>
+      <div class="matrix-layout">
+        <div class="axis-row-labels">
+          <span>IMPORTANT</span>
+          <span>NOT IMPORTANT</span>
+        </div>
+        <div class="matrix-grid">
+          <div class="matrix-quadrant q1">
+            <div class="quadrant-header">
+              <span class="quadrant-label">Do First</span>
+              <span class="quadrant-sub">Urgent · Important</span>
+            </div>
+            <ul id="matrix-q1" class="matrix-task-list"></ul>
+          </div>
+          <div class="matrix-quadrant q2">
+            <div class="quadrant-header">
+              <span class="quadrant-label">Schedule</span>
+              <span class="quadrant-sub">Not Urgent · Important</span>
+            </div>
+            <ul id="matrix-q2" class="matrix-task-list"></ul>
+          </div>
+          <div class="matrix-quadrant q3">
+            <div class="quadrant-header">
+              <span class="quadrant-label">Delegate</span>
+              <span class="quadrant-sub">Urgent · Not Important</span>
+            </div>
+            <ul id="matrix-q3" class="matrix-task-list"></ul>
+          </div>
+          <div class="matrix-quadrant q4">
+            <div class="quadrant-header">
+              <span class="quadrant-label">Eliminate</span>
+              <span class="quadrant-sub">Not Urgent · Not Important</span>
+            </div>
+            <ul id="matrix-q4" class="matrix-task-list"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
+  <div id="toast-container" class="toast-container"></div>
   <script src="/static/js/app.js"></script>
 </body>
 </html>
