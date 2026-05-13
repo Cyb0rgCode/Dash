@@ -319,19 +319,26 @@ function renderTasks() {
     return;
   }
 
-  list.innerHTML = tasks.map(t => `
-    <li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}" data-id="${t.id}">
+  list.innerHTML = tasks.map(t => {
+    const urgCls = t.urgent && t.important ? " li-both"
+      : t.important ? " li-important"
+      : t.urgent   ? " li-urgent"
+      : "";
+    return `
+    <li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}${urgCls}" data-id="${t.id}">
       <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete">
         ${t.completed ? "✓" : ""}
       </button>
       <span class="item-title">${escHtml(t.title)}</span>
+      ${t.urgent ? '<span class="tag-urgent">! urgent</span>' : ""}
+      ${t.important ? '<span class="tag-important">★ key</span>' : ""}
       <span class="badge badge-${t.priority}">${t.priority}</span>
       ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
       ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
       <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
       <button class="btn-icon" data-action="delete" title="Delete">✕</button>
-    </li>
-  `).join("");
+    </li>`;
+  }).join("");
   updateBatchBar();
 }
 
@@ -423,9 +430,16 @@ function updateBatchBar() {
   const n = selectedIds.size;
   bar.hidden = n === 0;
   if (n === 0) return;
+
+  const sel = allTasks.filter(t => selectedIds.has(t.id));
   $("#batch-count").textContent = `${n} selected`;
+
+  // Done button label reflects current state
+  const allDone = sel.length > 0 && sel.every(t => t.completed);
+  $("#batch-done").textContent = allDone ? "Mark undone" : "Mark done";
+
   if (n === 1) {
-    const task = allTasks.find(t => t.id === [...selectedIds][0]);
+    const task = sel[0];
     if (task) {
       $("#batch-edit-title").value = task.title;
       $("#batch-edit-priority").value = task.priority;
@@ -436,6 +450,13 @@ function updateBatchBar() {
     $("#batch-edit").hidden = false;
     $("#batch-multi").hidden = true;
   } else {
+    // Show aggregate urgent/important state on multi buttons
+    const allUrgent   = sel.every(t => t.urgent);
+    const someUrgent  = sel.some(t => t.urgent);
+    const allImp      = sel.every(t => t.important);
+    const someImp     = sel.some(t => t.important);
+    $("#batch-urgent").dataset.state   = allUrgent  ? "all" : someUrgent ? "some" : "none";
+    $("#batch-important").dataset.state = allImp    ? "all" : someImp    ? "some" : "none";
     $("#batch-edit").hidden = true;
     $("#batch-multi").hidden = false;
   }
@@ -509,17 +530,20 @@ $("#batch-important").addEventListener("click", async () => {
 });
 
 $("#batch-done").addEventListener("click", async () => {
-  const sel = allTasks.filter(t => selectedIds.has(t.id) && !t.completed);
+  const sel = allTasks.filter(t => selectedIds.has(t.id));
   if (!sel.length) return;
-  await Promise.all(sel.map(t => api(`/api/tasks/${t.id}`, "PUT", { completed: true })));
+  const completed = !sel.every(t => t.completed);
+  await Promise.all(sel.map(t => api(`/api/tasks/${t.id}`, "PUT", { completed })));
   const todayStr = today();
   sel.forEach(t => {
     const idx = allTasks.findIndex(a => a.id === t.id);
-    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], completed: 1, completed_at: todayStr };
+    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], completed: completed ? 1 : 0, completed_at: completed ? todayStr : null };
   });
   selectedIds.clear();
   renderTasks();
-  toast(`${sel.length} task${sel.length === 1 ? "" : "s"} done`);
+  toast(completed
+    ? `${sel.length} task${sel.length === 1 ? "" : "s"} done`
+    : `${sel.length} task${sel.length === 1 ? "" : "s"} reopened`);
 });
 
 $("#batch-delete").addEventListener("click", async () => {
