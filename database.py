@@ -70,8 +70,10 @@ def init_db():
 
     # Migrations — safe to run on existing DBs
     for col, typedef in [
-        ("urgent",    "INTEGER NOT NULL DEFAULT 0"),
-        ("important", "INTEGER NOT NULL DEFAULT 0"),
+        ("urgent",             "INTEGER NOT NULL DEFAULT 0"),
+        ("important",          "INTEGER NOT NULL DEFAULT 0"),
+        ("category",           "TEXT NOT NULL DEFAULT ''"),
+        ("estimated_minutes",  "INTEGER NOT NULL DEFAULT 0"),
     ]:
         try:
             conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {typedef}")

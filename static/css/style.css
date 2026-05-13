@@ -515,6 +515,16 @@ h2 {
 .item-list li.li-urgent   { border-left: 3px solid var(--yellow); }
 
 /* inline urgent / important tags */
+.tag-category {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+  color: var(--cyan); background: var(--cyan-dim);
+  border: 1px solid rgba(56,189,248,0.25);
+  border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+}
+.estimate-badge {
+  font-size: 11px; font-weight: 500;
+  color: var(--muted); white-space: nowrap;
+}
 .tag-urgent {
   font-size: 10px; font-weight: 700; letter-spacing: 0.4px;
   color: var(--red); background: var(--red-dim);
@@ -581,6 +591,8 @@ body.drag-selecting * { cursor: crosshair !important; }
 }
 .batch-edit-title:focus { border-color: var(--accent); }
 .batch-edit-title::placeholder { color: var(--muted); }
+.batch-edit-category { width: 90px; }
+.batch-edit-estimate { width: 76px; }
 #batch-save { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
 #batch-save:hover { background: var(--accent-light) !important; border-color: var(--accent-light) !important; }
 

@@ -330,10 +330,12 @@ function renderTasks() {
         ${t.completed ? "✓" : ""}
       </button>
       <span class="item-title">${escHtml(t.title)}</span>
+      ${t.category ? `<span class="tag-category">${escHtml(t.category)}</span>` : ""}
       ${t.urgent ? '<span class="tag-urgent">! urgent</span>' : ""}
       ${t.important ? '<span class="tag-important">★ key</span>' : ""}
       <span class="badge badge-${t.priority}">${t.priority}</span>
       ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
+      ${t.estimated_minutes ? `<span class="estimate-badge">~${fmtTime(t.estimated_minutes)}</span>` : ""}
       ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
       <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
       <button class="btn-icon" data-action="delete" title="Delete">✕</button>
@@ -442,8 +444,10 @@ function updateBatchBar() {
     const task = sel[0];
     if (task) {
       $("#batch-edit-title").value = task.title;
+      $("#batch-edit-category").value = task.category || "";
       $("#batch-edit-priority").value = task.priority;
       $("#batch-edit-deadline").value = task.deadline || "";
+      $("#batch-edit-estimate").value = task.estimated_minutes || "";
       $("#batch-edit-urgent").setAttribute("aria-pressed", task.urgent ? "true" : "false");
       $("#batch-edit-important").setAttribute("aria-pressed", task.important ? "true" : "false");
     }
@@ -474,11 +478,13 @@ $("#batch-save").addEventListener("click", async () => {
   if (!id) return;
   const title = $("#batch-edit-title").value.trim();
   if (!title) return;
-  const priority  = $("#batch-edit-priority").value;
-  const deadline  = $("#batch-edit-deadline").value || null;
-  const urgent    = $("#batch-edit-urgent").getAttribute("aria-pressed") === "true";
-  const important = $("#batch-edit-important").getAttribute("aria-pressed") === "true";
-  const updated = await api(`/api/tasks/${id}`, "PUT", { title, priority, deadline, urgent, important });
+  const category          = $("#batch-edit-category").value.trim();
+  const priority          = $("#batch-edit-priority").value;
+  const deadline          = $("#batch-edit-deadline").value || null;
+  const estimated_minutes = parseInt($("#batch-edit-estimate").value, 10) || 0;
+  const urgent            = $("#batch-edit-urgent").getAttribute("aria-pressed") === "true";
+  const important         = $("#batch-edit-important").getAttribute("aria-pressed") === "true";
+  const updated = await api(`/api/tasks/${id}`, "PUT", { title, category, priority, deadline, estimated_minutes, urgent, important });
   const idx = allTasks.findIndex(t => t.id === id);
   allTasks[idx] = { ...updated, time_logged: allTasks[idx].time_logged };
   selectedIds.clear();
@@ -559,16 +565,19 @@ $("#batch-delete").addEventListener("click", async () => {
 
 const AI_PROMPT = `Generate a JSON task list for a productivity app. Return ONLY a valid JSON array — no markdown, no explanation — where each object has:
 - "title": string (required) — clear, actionable task name
+- "category": string (required) — short group label, e.g. "Exercise", "Study", "Work", "Health", "Personal"
 - "priority": "high" | "medium" | "low" (required)
 - "urgent": true | false — needs attention today or immediately
 - "important": true | false — high impact on goals or values
 - "deadline": "YYYY-MM-DD" | null — due date if applicable
+- "estimated_minutes": number (required) — realistic estimate of how long this task will take, e.g. 30, 45, 90
 
 Example output:
 [
-  {"title":"Finish quarterly report","priority":"high","urgent":true,"important":true,"deadline":"2024-12-31"},
-  {"title":"Buy groceries","priority":"medium","urgent":true,"important":false,"deadline":null},
-  {"title":"Read design book","priority":"low","urgent":false,"important":true,"deadline":null}
+  {"title":"Finish quarterly report","category":"Work","priority":"high","urgent":true,"important":true,"deadline":"2024-12-31","estimated_minutes":120},
+  {"title":"30-min run","category":"Exercise","priority":"medium","urgent":false,"important":true,"deadline":null,"estimated_minutes":35},
+  {"title":"Read design book chapter","category":"Study","priority":"low","urgent":false,"important":true,"deadline":null,"estimated_minutes":45},
+  {"title":"Buy groceries","category":"Personal","priority":"medium","urgent":true,"important":false,"deadline":null,"estimated_minutes":20}
 ]
 
 Now generate tasks for: [DESCRIBE YOUR GOAL OR PROJECT HERE]`;
@@ -598,11 +607,13 @@ $("#task-import-input").addEventListener("change", async e => {
   for (const t of valid) {
     try {
       const task = await api("/api/tasks", "POST", {
-        title:     t.title.trim(),
-        priority:  ["high", "medium", "low"].includes(t.priority) ? t.priority : "medium",
-        deadline:  t.deadline || null,
-        urgent:    Boolean(t.urgent),
-        important: Boolean(t.important),
+        title:              t.title.trim(),
+        category:           t.category ? String(t.category).trim() : "",
+        priority:           ["high", "medium", "low"].includes(t.priority) ? t.priority : "medium",
+        deadline:           t.deadline || null,
+        urgent:             Boolean(t.urgent),
+        important:          Boolean(t.important),
+        estimated_minutes:  parseInt(t.estimated_minutes, 10) || 0,
       });
       allTasks.unshift(task);
       added++;
