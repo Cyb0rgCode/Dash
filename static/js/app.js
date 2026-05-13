@@ -158,13 +158,13 @@ function overlayForecast(forecastData) {
     type: "line",
     label: "Forecast",
     data: lineData,
-    borderColor: "rgba(56,189,248,0.9)",
-    backgroundColor: "rgba(56,189,248,0.08)",
+    borderColor: "rgba(106,247,200,0.9)",
+    backgroundColor: "rgba(106,247,200,0.08)",
     borderWidth: 2,
     borderDash: [6, 4],
     pointRadius: 4,
-    pointBackgroundColor: "rgba(56,189,248,1)",
-    pointBorderColor: "#161925",
+    pointBackgroundColor: "rgba(106,247,200,1)",
+    pointBorderColor: "#0a0a0f",
     pointBorderWidth: 2,
     tension: 0.35,
     fill: false,
@@ -186,11 +186,11 @@ function renderDailyChart(data) {
   if (dailyChart) dailyChart.destroy();
 
   const gradient = ctx.createLinearGradient(0, 0, 0, 220);
-  gradient.addColorStop(0, "rgba(124,117,255,0.95)");
-  gradient.addColorStop(1, "rgba(124,117,255,0.2)");
+  gradient.addColorStop(0, "rgba(124,106,247,0.95)");
+  gradient.addColorStop(1, "rgba(124,106,247,0.2)");
   const hoverGrad = ctx.createLinearGradient(0, 0, 0, 220);
-  hoverGrad.addColorStop(0, "rgba(157,151,255,1)");
-  hoverGrad.addColorStop(1, "rgba(56,189,248,0.4)");
+  hoverGrad.addColorStop(0, "rgba(157,143,255,1)");
+  hoverGrad.addColorStop(1, "rgba(106,247,200,0.4)");
 
   dailyChart = new Chart(ctx, {
     type: "bar",
@@ -211,20 +211,20 @@ function renderDailyChart(data) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: "rgba(31,35,51,0.95)",
-          borderColor: "rgba(124,117,255,0.4)",
+          backgroundColor: "rgba(18,18,26,0.97)",
+          borderColor: "rgba(124,106,247,0.4)",
           borderWidth: 1,
-          titleColor: "#e6e9f2",
-          bodyColor: "#e6e9f2",
+          titleColor: "#e8e8f0",
+          bodyColor: "#e8e8f0",
           padding: 10,
-          cornerRadius: 8,
+          cornerRadius: 10,
           displayColors: false,
           callbacks: { label: c => fmtTime(c.parsed.y) || "0m" },
         },
       },
       scales: {
-        x: { ticks: { color: "#828aa1", font: { size: 11 } }, grid: { display: false } },
-        y: { ticks: { color: "#828aa1", font: { size: 11 } }, grid: { color: "rgba(42,47,67,0.6)" }, beginAtZero: true, border: { display: false } },
+        x: { ticks: { color: "#6060a0", font: { size: 11, family: "JetBrains Mono" } }, grid: { display: false } },
+        y: { ticks: { color: "#6060a0", font: { size: 11, family: "JetBrains Mono" } }, grid: { color: "rgba(30,30,46,0.8)" }, beginAtZero: true, border: { display: false } },
       },
     },
   });
@@ -234,7 +234,7 @@ function renderPriorityChart(data) {
   const ctx = $("#chart-priority").getContext("2d");
   if (priorityChart) priorityChart.destroy();
   if (!data.length) return;
-  const colorMap = { high: "#ef4444", medium: "#f59e0b", low: "#22c55e" };
+  const colorMap = { high: "#f76a8c", medium: "#f7c76a", low: "#6af7c8" };
   const colors = data.map(d => colorMap[d.category] || "#7c75ff");
   priorityChart = new Chart(ctx, {
     type: "doughnut",
@@ -243,7 +243,7 @@ function renderPriorityChart(data) {
       datasets: [{
         data: data.map(d => d.total),
         backgroundColor: colors,
-        borderColor: "#161925",
+        borderColor: "#0a0a0f",
         borderWidth: 3,
         hoverOffset: 8,
       }],
@@ -255,14 +255,14 @@ function renderPriorityChart(data) {
       plugins: {
         legend: {
           position: "bottom",
-          labels: { color: "#e6e9f2", boxWidth: 10, boxHeight: 10, padding: 14, usePointStyle: true, font: { size: 12, weight: "500" } },
+          labels: { color: "#e8e8f0", boxWidth: 10, boxHeight: 10, padding: 14, usePointStyle: true, font: { size: 11, family: "JetBrains Mono", weight: "600" } },
         },
         tooltip: {
-          backgroundColor: "rgba(31,35,51,0.95)",
-          borderColor: "rgba(124,117,255,0.4)",
+          backgroundColor: "rgba(18,18,26,0.97)",
+          borderColor: "rgba(124,106,247,0.4)",
           borderWidth: 1,
           padding: 10,
-          cornerRadius: 8,
+          cornerRadius: 10,
           callbacks: { label: c => ` ${c.label}: ${fmtTime(c.parsed)}` },
         },
       },
