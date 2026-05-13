@@ -501,6 +501,12 @@ h2 {
   transform: translateX(3px);
   box-shadow: 0 4px 16px rgba(124,117,255,0.12);
 }
+.item-list li.selected {
+  border-color: var(--accent) !important;
+  background: linear-gradient(90deg, rgba(124,117,255,0.18) 0%, rgba(124,117,255,0.06) 100%) !important;
+  box-shadow: inset 3px 0 0 var(--accent), 0 4px 16px rgba(124,117,255,0.15) !important;
+  transform: translateX(3px);
+}
 
 .item-list li.done { opacity: 0.5; }
 .item-list li.done .item-title { text-decoration: line-through; }

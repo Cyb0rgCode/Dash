@@ -320,7 +320,7 @@ function renderTasks() {
   }
 
   list.innerHTML = tasks.map(t => `
-    <li class="${t.completed ? "done" : ""}" data-id="${t.id}">
+    <li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}" data-id="${t.id}">
       <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete">
         ${t.completed ? "✓" : ""}
       </button>
@@ -633,13 +633,12 @@ document.addEventListener("contextmenu", e => {
 });
 
 function applyDragSelect(li, id) {
-  const cb = li.querySelector(".task-checkbox");
   if (dragSelectMode === "select") {
     selectedIds.add(id);
-    if (cb) cb.checked = true;
+    li.classList.add("selected");
   } else {
     selectedIds.delete(id);
-    if (cb) cb.checked = false;
+    li.classList.remove("selected");
   }
   updateBatchBar();
 }
