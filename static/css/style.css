@@ -1116,6 +1116,12 @@ body.drag-selecting * { cursor: crosshair !important; }
 /* Habits & Goals segmented switcher: hidden on desktop (both panes visible) */
 .habits-section-tabs { display: none; }
 
+/* Compact "Add" submit nested inside the goal form's inline-row */
+.inline-row > .goal-add-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 /* ── Toggle buttons (urgent / important) ── */
 .toggle-btn {
   background: var(--surface2);
@@ -1481,9 +1487,18 @@ button[type="submit"]:active,
   .page-subtitle { font-size: 11px; }
   /* Habits & Goals stacked columns: tighter vertical rhythm */
   .two-col { gap: 14px; }
-  /* Goal items: tighter padding on mobile */
-  .item-list li.goal-item { padding: 10px 12px; gap: 6px; }
+  /* Goal items: tightest packing for the 393px viewport */
+  .item-list li.goal-item { padding: 8px 10px; gap: 4px; }
+  .item-list li.goal-item .goal-progress-wrap { gap: 2px; }
   .goal-edit-inline .goal-input-inline { width: 56px; font-size: 13px; }
+
+  /* Goal form: keep "Add" inline with the meta row instead of its own line.
+     Cuts the form from 3 rows to 2 (saves ~38px). */
+  .inline-row > .goal-add-btn {
+    width: auto !important;
+    min-width: 56px;
+    padding: 9px 14px;
+  }
 
   /* List items: trim padding and inter-item gap to fit ~6 visible rows */
   .item-list { gap: 6px; }
