@@ -140,42 +140,14 @@
       </div>
       <div id="batch-bar" class="batch-bar" hidden>
         <span id="batch-count"></span>
-        <div id="batch-edit" class="batch-actions" hidden>
-          <input id="batch-edit-title" class="batch-edit-title" type="text" placeholder="Title…" />
-          <input id="batch-edit-category" class="batch-select batch-edit-category" type="text" placeholder="Course / Subject" />
-          <input id="batch-edit-chapter" class="batch-select batch-edit-chapter" type="text" placeholder="Chapter / Section" />
-          <select id="batch-edit-type" class="batch-select">
-            <option value="">Type…</option>
-            <option value="exercise">Exercise</option>
-            <option value="quiz">Quiz</option>
-            <option value="assignment">Assignment</option>
-            <option value="reading">Reading</option>
-            <option value="lab">Lab</option>
-            <option value="project">Project</option>
-            <option value="lecture">Lecture</option>
-            <option value="other">Other</option>
-          </select>
-          <select id="batch-edit-priority" class="batch-select">
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-          <input id="batch-edit-deadline" type="date" class="batch-select" title="Deadline" />
-          <input id="batch-edit-estimate" class="batch-select batch-edit-estimate" type="number" placeholder="Est. min" min="0" title="Estimated minutes" />
-          <button type="button" id="batch-edit-urgent" class="toggle-btn urgent" aria-pressed="false">Urgent</button>
-          <button type="button" id="batch-edit-important" class="toggle-btn important" aria-pressed="false">Important</button>
-          <button type="button" id="batch-save" class="batch-btn">Save</button>
-        </div>
-        <div id="batch-multi" class="batch-actions" hidden>
-          <select id="batch-priority" class="batch-select">
-            <option value="">Priority…</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-          <button type="button" id="batch-urgent" class="batch-btn">Urgent</button>
-          <button type="button" id="batch-important" class="batch-btn">Important</button>
-        </div>
+        <select id="batch-priority" class="batch-select">
+          <option value="">Priority…</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <button type="button" id="batch-urgent" class="batch-btn">Urgent</button>
+        <button type="button" id="batch-important" class="batch-btn">Important</button>
         <button type="button" id="batch-done" class="batch-btn">Mark done</button>
         <button type="button" id="batch-delete" class="batch-btn danger">Delete</button>
         <button type="button" id="batch-clear" class="btn-icon" title="Clear selection">✕</button>
@@ -265,6 +237,74 @@
     </section>
 
   </main>
+
+  <div id="edit-sheet" class="edit-sheet" hidden>
+    <div class="edit-sheet-backdrop" data-action="close-edit"></div>
+    <div class="edit-sheet-panel" role="dialog" aria-labelledby="edit-sheet-title">
+      <div class="edit-sheet-header">
+        <h2 id="edit-sheet-title">Edit task</h2>
+        <button type="button" class="btn-icon" data-action="close-edit" title="Close">✕</button>
+      </div>
+      <form id="edit-form" class="edit-form">
+        <label class="edit-field">
+          <span>Title</span>
+          <input id="edit-title" type="text" required />
+        </label>
+        <div class="edit-row">
+          <label class="edit-field">
+            <span>Course / Subject</span>
+            <input id="edit-category" type="text" placeholder="e.g. Math 201" />
+          </label>
+          <label class="edit-field">
+            <span>Chapter / Section</span>
+            <input id="edit-chapter" type="text" placeholder="e.g. Chapter 3" />
+          </label>
+        </div>
+        <div class="edit-row">
+          <label class="edit-field">
+            <span>Type</span>
+            <select id="edit-type">
+              <option value="">—</option>
+              <option value="exercise">Exercise</option>
+              <option value="quiz">Quiz</option>
+              <option value="assignment">Assignment</option>
+              <option value="reading">Reading</option>
+              <option value="lab">Lab</option>
+              <option value="project">Project</option>
+              <option value="lecture">Lecture</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="edit-field">
+            <span>Priority</span>
+            <select id="edit-priority">
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+        </div>
+        <div class="edit-row">
+          <label class="edit-field">
+            <span>Deadline</span>
+            <input id="edit-deadline" type="date" />
+          </label>
+          <label class="edit-field">
+            <span>Est. minutes</span>
+            <input id="edit-estimate" type="number" min="0" placeholder="0" />
+          </label>
+        </div>
+        <div class="edit-toggles">
+          <button type="button" id="edit-urgent" class="toggle-btn urgent" aria-pressed="false">Urgent</button>
+          <button type="button" id="edit-important" class="toggle-btn important" aria-pressed="false">Important</button>
+        </div>
+        <div class="edit-actions">
+          <button type="button" class="batch-btn" data-action="close-edit">Cancel</button>
+          <button type="submit" class="batch-btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div id="toast-container" class="toast-container"></div>
   <script src="/static/js/app.js"></script>

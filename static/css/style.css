@@ -679,33 +679,117 @@ h2 {
   line-height: 1;
 }
 .btn-icon:hover { color: var(--red); background: var(--red-dim); }
+.btn-icon[data-action="edit"]:hover { color: var(--accent); background: var(--accent-dim); }
 
 /* ── Drag-to-select ── */
 body.drag-selecting { user-select: none; }
 body.drag-selecting * { cursor: crosshair !important; }
 
-/* ── Batch edit title input ── */
-.batch-edit-title {
-  flex: 1;
-  min-width: 120px;
-  max-width: 220px;
+/* ── Edit sheet (slide-up modal for single-task edit) ── */
+.edit-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.edit-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.edit-sheet.open .edit-sheet-backdrop { opacity: 1; }
+
+.edit-sheet-panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 22px 22px 18px;
+  box-shadow: var(--shadow-md), 0 0 0 1px rgba(255,255,255,0.04);
+  transform: translateY(20px) scale(0.98);
+  opacity: 0;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease;
+}
+.edit-sheet.open .edit-sheet-panel { transform: translateY(0) scale(1); opacity: 1; }
+
+.edit-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.edit-sheet-header h2 {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.edit-form { display: flex; flex-direction: column; gap: 12px; }
+.edit-row  { display: flex; gap: 12px; }
+.edit-row > .edit-field { flex: 1; min-width: 0; }
+.edit-field { display: flex; flex-direction: column; gap: 5px; }
+.edit-field > span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: 'JetBrains Mono', monospace;
+}
+.edit-field input,
+.edit-field select {
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 12px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
   outline: none;
-  transition: border-color 0.15s;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.batch-edit-title:focus { border-color: var(--accent); }
-.batch-edit-title::placeholder { color: var(--muted); }
-.batch-edit-category { width: 90px; }
-.batch-edit-chapter  { width: 100px; }
-.batch-edit-estimate { width: 76px; }
-#batch-save { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
-#batch-save:hover { background: var(--accent-light) !important; border-color: var(--accent-light) !important; }
+.edit-field input:focus,
+.edit-field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.edit-field input::placeholder { color: var(--muted); }
+
+.edit-toggles { display: flex; gap: 8px; }
+.edit-toggles .toggle-btn { flex: 1; padding: 9px 14px; }
+
+.edit-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+.edit-actions .batch-btn { padding: 9px 18px; font-size: 12px; }
+.edit-actions .batch-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(124,106,247,0.3);
+}
+.edit-actions .batch-btn.primary:hover {
+  background: var(--accent-light);
+  border-color: var(--accent-light);
+  color: #fff;
+}
 
 /* ── Batch action bar ── */
 .batch-bar {
@@ -1218,6 +1302,21 @@ body.drag-selecting * { cursor: crosshair !important; }
   /* ── Eisenhower matrix already collapses at 700px, refine touch ── */
   .matrix-quadrant { padding: 12px; }
   .matrix-task-list li { padding: 10px; }
+
+  /* ── Edit sheet: slide up from bottom like an iOS sheet ── */
+  .edit-sheet { align-items: flex-end; }
+  .edit-sheet-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90vh;
+    max-height: 90dvh;
+    border-radius: 18px 18px 0 0;
+    padding: 18px 16px calc(20px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+  }
+  .edit-sheet.open .edit-sheet-panel { transform: translateY(0); }
+  .edit-row { flex-direction: column; gap: 12px; }
+  .edit-toggles .toggle-btn { padding: 12px 14px; }
 
   /* ── Toast: full-width near bottom but above nav ── */
   .toast-container {

@@ -376,6 +376,7 @@ function renderTasks() {
           ${t.estimated_minutes ? `<span class="estimate-badge">~${fmtTime(t.estimated_minutes)}</span>` : ""}
           ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
           <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
+          <button class="btn-icon" data-action="edit" title="Edit">✎</button>
           <button class="btn-icon" data-action="delete" title="Delete">✕</button>
         </li>`;
       });
@@ -462,6 +463,9 @@ $("#task-list").addEventListener("click", async e => {
     allTasks[idx] = { ...updated, time_logged: task.time_logged };
     renderTasks();
   }
+  if (action === "edit") {
+    openEditSheet(id);
+  }
   if (action === "delete") {
     await api(`/api/tasks/${id}`, "DELETE");
     allTasks = allTasks.filter(t => t.id !== id);
@@ -496,72 +500,61 @@ $$(".filter-btn").forEach(btn => {
 
 // ── Batch actions ──────────────────────────────────────────────────────────────
 
-function updateBatchBar() {
+// Cheap update: count + visibility only. Safe to call on every drag tick.
+function updateBatchBarCount() {
   const bar = $("#batch-bar");
   const n = selectedIds.size;
   bar.hidden = n === 0;
+  if (n > 0) $("#batch-count").textContent = `${n} selected`;
+}
+
+// Full update: aggregate states + button labels. Call once per discrete action.
+function updateBatchBar() {
+  updateBatchBarCount();
+  const n = selectedIds.size;
   if (n === 0) return;
 
   const sel = allTasks.filter(t => selectedIds.has(t.id));
-  $("#batch-count").textContent = `${n} selected`;
+  const allDone    = sel.length > 0 && sel.every(t => t.completed);
+  const allUrgent  = sel.every(t => t.urgent);
+  const someUrgent = sel.some(t => t.urgent);
+  const allImp     = sel.every(t => t.important);
+  const someImp    = sel.some(t => t.important);
 
-  // Done button label reflects current state
-  const allDone = sel.length > 0 && sel.every(t => t.completed);
   $("#batch-done").textContent = allDone ? "Mark undone" : "Mark done";
+  $("#batch-urgent").dataset.state    = allUrgent ? "all" : someUrgent ? "some" : "none";
+  $("#batch-important").dataset.state = allImp    ? "all" : someImp    ? "some" : "none";
+}
 
-  if (n === 1) {
-    const task = sel[0];
-    if (task) {
-      $("#batch-edit-title").value = task.title;
-      $("#batch-edit-category").value = task.category || "";
-      $("#batch-edit-chapter").value = task.chapter || "";
-      $("#batch-edit-type").value = task.task_type || "";
-      $("#batch-edit-priority").value = task.priority;
-      $("#batch-edit-deadline").value = task.deadline || "";
-      $("#batch-edit-estimate").value = task.estimated_minutes || "";
-      $("#batch-edit-urgent").setAttribute("aria-pressed", task.urgent ? "true" : "false");
-      $("#batch-edit-important").setAttribute("aria-pressed", task.important ? "true" : "false");
-    }
-    $("#batch-edit").hidden = false;
-    $("#batch-multi").hidden = true;
-  } else {
-    // Show aggregate urgent/important state on multi buttons
-    const allUrgent   = sel.every(t => t.urgent);
-    const someUrgent  = sel.some(t => t.urgent);
-    const allImp      = sel.every(t => t.important);
-    const someImp     = sel.some(t => t.important);
-    $("#batch-urgent").dataset.state   = allUrgent  ? "all" : someUrgent ? "some" : "none";
-    $("#batch-important").dataset.state = allImp    ? "all" : someImp    ? "some" : "none";
-    $("#batch-edit").hidden = true;
-    $("#batch-multi").hidden = false;
+// Targeted helpers — patch the DOM in place instead of re-rendering the whole list.
+function patchTaskInDom(task) {
+  const li = $(`#task-list li[data-id="${task.id}"]`);
+  if (!li) return;
+  li.classList.toggle("done", !!task.completed);
+  li.classList.toggle("li-both",      task.urgent && task.important);
+  li.classList.toggle("li-important", !!task.important && !task.urgent);
+  li.classList.toggle("li-urgent",    !!task.urgent && !task.important);
+  const check = li.querySelector(".habit-check");
+  if (check) {
+    check.classList.toggle("done", !!task.completed);
+    check.textContent = task.completed ? "✓" : "";
+  }
+  const badge = li.querySelector(".badge");
+  if (badge) {
+    badge.className = `badge badge-${task.priority}`;
+    badge.textContent = task.priority;
   }
 }
 
-
-$("#batch-save").addEventListener("click", async () => {
-  const id = [...selectedIds][0];
-  if (!id) return;
-  const title = $("#batch-edit-title").value.trim();
-  if (!title) return;
-  const category          = $("#batch-edit-category").value.trim();
-  const chapter           = $("#batch-edit-chapter").value.trim();
-  const task_type         = $("#batch-edit-type").value;
-  const priority          = $("#batch-edit-priority").value;
-  const deadline          = $("#batch-edit-deadline").value || null;
-  const estimated_minutes = parseInt($("#batch-edit-estimate").value, 10) || 0;
-  const urgent            = $("#batch-edit-urgent").getAttribute("aria-pressed") === "true";
-  const important         = $("#batch-edit-important").getAttribute("aria-pressed") === "true";
-  const updated = await api(`/api/tasks/${id}`, "PUT", { title, category, chapter, task_type, priority, deadline, estimated_minutes, urgent, important });
-  const idx = allTasks.findIndex(t => t.id === id);
-  allTasks[idx] = { ...updated, time_logged: allTasks[idx].time_logged };
-  selectedIds.clear();
-  renderTasks();
-  toast("Task updated");
-});
+function removeTaskFromDom(id) {
+  const li = $(`#task-list li[data-id="${id}"]`);
+  if (li) li.remove();
+}
 
 $("#batch-clear").addEventListener("click", () => {
+  $$("#task-list li.selected").forEach(li => li.classList.remove("selected"));
   selectedIds.clear();
-  renderTasks();
+  updateBatchBar();
 });
 
 $("#batch-priority").addEventListener("change", async e => {
@@ -572,9 +565,12 @@ $("#batch-priority").addEventListener("change", async e => {
   await Promise.all(ids.map(id => api(`/api/tasks/${id}`, "PUT", { priority })));
   ids.forEach(id => {
     const idx = allTasks.findIndex(t => t.id === id);
-    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], priority };
+    if (idx >= 0) {
+      allTasks[idx] = { ...allTasks[idx], priority };
+      patchTaskInDom(allTasks[idx]);
+    }
   });
-  renderTasks();
+  updateBatchBar();
   toast(`Priority set to ${priority} for ${ids.length} task${ids.length === 1 ? "" : "s"}`);
 });
 
@@ -584,9 +580,12 @@ $("#batch-urgent").addEventListener("click", async () => {
   await Promise.all(sel.map(t => api(`/api/tasks/${t.id}`, "PUT", { urgent })));
   sel.forEach(t => {
     const idx = allTasks.findIndex(a => a.id === t.id);
-    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], urgent };
+    if (idx >= 0) {
+      allTasks[idx] = { ...allTasks[idx], urgent };
+      patchTaskInDom(allTasks[idx]);
+    }
   });
-  renderTasks();
+  updateBatchBar();
   toast(`${sel.length} tasks marked ${urgent ? "urgent" : "not urgent"}`);
 });
 
@@ -596,9 +595,12 @@ $("#batch-important").addEventListener("click", async () => {
   await Promise.all(sel.map(t => api(`/api/tasks/${t.id}`, "PUT", { important })));
   sel.forEach(t => {
     const idx = allTasks.findIndex(a => a.id === t.id);
-    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], important };
+    if (idx >= 0) {
+      allTasks[idx] = { ...allTasks[idx], important };
+      patchTaskInDom(allTasks[idx]);
+    }
   });
-  renderTasks();
+  updateBatchBar();
   toast(`${sel.length} tasks marked ${important ? "important" : "not important"}`);
 });
 
@@ -610,10 +612,14 @@ $("#batch-done").addEventListener("click", async () => {
   const todayStr = today();
   sel.forEach(t => {
     const idx = allTasks.findIndex(a => a.id === t.id);
-    if (idx >= 0) allTasks[idx] = { ...allTasks[idx], completed: completed ? 1 : 0, completed_at: completed ? todayStr : null };
+    if (idx >= 0) {
+      allTasks[idx] = { ...allTasks[idx], completed: completed ? 1 : 0, completed_at: completed ? todayStr : null };
+      patchTaskInDom(allTasks[idx]);
+    }
   });
+  $$("#task-list li.selected").forEach(li => li.classList.remove("selected"));
   selectedIds.clear();
-  renderTasks();
+  updateBatchBar();
   toast(completed
     ? `${sel.length} task${sel.length === 1 ? "" : "s"} done`
     : `${sel.length} task${sel.length === 1 ? "" : "s"} reopened`);
@@ -622,10 +628,72 @@ $("#batch-done").addEventListener("click", async () => {
 $("#batch-delete").addEventListener("click", async () => {
   const ids = [...selectedIds];
   await Promise.all(ids.map(id => api(`/api/tasks/${id}`, "DELETE")));
+  ids.forEach(removeTaskFromDom);
   allTasks = allTasks.filter(t => !selectedIds.has(t.id));
   selectedIds.clear();
-  renderTasks();
+  updateBatchBar();
   toast(`Deleted ${ids.length} task${ids.length === 1 ? "" : "s"}`);
+});
+
+// ── Edit sheet (single-task editor) ────────────────────────────────────────────
+
+let editingTaskId = null;
+const editSheet = $("#edit-sheet");
+
+function openEditSheet(id) {
+  const task = allTasks.find(t => t.id === id);
+  if (!task) return;
+  editingTaskId = id;
+  $("#edit-title").value = task.title;
+  $("#edit-category").value = task.category || "";
+  $("#edit-chapter").value = task.chapter || "";
+  $("#edit-type").value = task.task_type || "";
+  $("#edit-priority").value = task.priority || "medium";
+  $("#edit-deadline").value = task.deadline || "";
+  $("#edit-estimate").value = task.estimated_minutes || "";
+  $("#edit-urgent").setAttribute("aria-pressed", task.urgent ? "true" : "false");
+  $("#edit-important").setAttribute("aria-pressed", task.important ? "true" : "false");
+  editSheet.hidden = false;
+  requestAnimationFrame(() => editSheet.classList.add("open"));
+  setTimeout(() => $("#edit-title").focus(), 100);
+}
+
+function closeEditSheet() {
+  editSheet.classList.remove("open");
+  setTimeout(() => { editSheet.hidden = true; editingTaskId = null; }, 200);
+}
+
+editSheet.addEventListener("click", e => {
+  if (e.target.dataset.action === "close-edit") closeEditSheet();
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !editSheet.hidden) closeEditSheet();
+});
+
+$("#edit-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (editingTaskId == null) return;
+  const id = editingTaskId;
+  const title = $("#edit-title").value.trim();
+  if (!title) return;
+  const payload = {
+    title,
+    category:          $("#edit-category").value.trim(),
+    chapter:           $("#edit-chapter").value.trim(),
+    task_type:         $("#edit-type").value,
+    priority:          $("#edit-priority").value,
+    deadline:          $("#edit-deadline").value || null,
+    estimated_minutes: parseInt($("#edit-estimate").value, 10) || 0,
+    urgent:            $("#edit-urgent").getAttribute("aria-pressed") === "true",
+    important:         $("#edit-important").getAttribute("aria-pressed") === "true",
+  };
+  const updated = await api(`/api/tasks/${id}`, "PUT", payload);
+  const idx = allTasks.findIndex(t => t.id === id);
+  if (idx >= 0) allTasks[idx] = { ...updated, time_logged: allTasks[idx].time_logged };
+  closeEditSheet();
+  renderTasks();
+  toast("Task updated");
 });
 
 // ── JSON Import ────────────────────────────────────────────────────────────────
@@ -744,17 +812,22 @@ document.addEventListener("mouseup", e => {
   isDragSelecting = false;
   dragSelectMode = null;
   document.body.classList.remove("drag-selecting");
+  updateBatchBar(); // settle final aggregate state once
 });
 
 function applyDragSelect(li, id) {
   if (dragSelectMode === "select") {
+    if (selectedIds.has(id)) return;
     selectedIds.add(id);
     li.classList.add("selected");
   } else {
+    if (!selectedIds.has(id)) return;
     selectedIds.delete(id);
     li.classList.remove("selected");
   }
-  updateBatchBar();
+  // During drag: only update count (cheap). Full update fires on mouseup.
+  if (isDragSelecting) updateBatchBarCount();
+  else updateBatchBar();
 }
 
 // ── Habits ─────────────────────────────────────────────────────────────────────
