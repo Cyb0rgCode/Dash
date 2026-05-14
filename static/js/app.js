@@ -59,6 +59,21 @@ updateSidebarDate();
 
 let activeTab = "dashboard";
 
+function updateNavIndicator(animate = true) {
+  const nav = $("aside.sidebar nav");
+  const indicator = $(".nav-indicator");
+  const active = nav?.querySelector(".nav-btn.active");
+  if (!nav || !indicator || !active) return;
+  if (!animate) indicator.style.transition = "none";
+  const navRect = nav.getBoundingClientRect();
+  const btnRect = active.getBoundingClientRect();
+  indicator.style.transform = `translateX(${btnRect.left - navRect.left}px) translateY(${btnRect.top - navRect.top}px)`;
+  indicator.style.width  = `${btnRect.width}px`;
+  indicator.style.height = `${btnRect.height}px`;
+  indicator.style.opacity = "1";
+  if (!animate) requestAnimationFrame(() => { indicator.style.transition = ""; });
+}
+
 $$(".nav-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     $$(".nav-btn").forEach(b => b.classList.remove("active"));
@@ -66,12 +81,17 @@ $$(".nav-btn").forEach(btn => {
     btn.classList.add("active");
     activeTab = btn.dataset.tab;
     $(`#tab-${activeTab}`).classList.add("active");
+    updateNavIndicator();
     if (activeTab === "dashboard") loadDashboard();
     if (activeTab === "tasks")    loadTasks();
     if (activeTab === "habits")   { loadHabits(); loadGoals(); }
     if (activeTab === "matrix")   loadMatrix();
   });
 });
+
+window.addEventListener("resize", () => updateNavIndicator(false));
+window.addEventListener("load", () => updateNavIndicator(false));
+requestAnimationFrame(() => updateNavIndicator(false));
 
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 

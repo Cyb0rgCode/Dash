@@ -33,9 +33,11 @@
   --muted: #6060a0;
   --sidebar-w: 232px;
   --radius: 14px;
-  --shadow-sm: 0 1px 4px rgba(0,0,0,0.3);
-  --shadow-md: 0 8px 32px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 0 1px rgba(255,255,255,0.02), 0 8px 32px rgba(0,0,0,0.4);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.14);
+  --shadow-md: 0 2px 6px rgba(0,0,0,0.22), 0 12px 32px rgba(0,0,0,0.32);
+  --shadow-glow: 0 0 0 1px rgba(255,255,255,0.03), 0 12px 36px rgba(0,0,0,0.4);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 body {
@@ -97,7 +99,30 @@ body {
 .logo-text { white-space: nowrap; }
 .logo-text span { color: var(--text); }
 
-nav { display: flex; flex-direction: column; gap: 2px; }
+nav { display: flex; flex-direction: column; gap: 2px; position: relative; }
+
+/* ── Sliding nav indicator (iOS-style pill) ── */
+.nav-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  background: var(--accent-dim);
+  border: 1px solid rgba(124,106,247,0.28);
+  border-radius: 10px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  box-shadow:
+    0 4px 14px rgba(124,106,247,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  transition:
+    transform 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
+    width 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
+    height 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
+    opacity 0.25s ease;
+}
 
 .nav-btn {
   background: none;
@@ -114,11 +139,13 @@ nav { display: flex; flex-direction: column; gap: 2px; }
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  position: relative;
+  z-index: 1;
+  transition: color 0.2s, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.nav-btn:hover { background: var(--surface2); color: var(--text); }
+.nav-btn:hover { color: var(--text); }
+.nav-btn:active { transform: scale(0.96); transition-duration: 0.08s; }
 .nav-btn.active {
-  background: var(--accent-dim);
   color: var(--accent);
   border-left-color: var(--accent);
   font-weight: 800;
@@ -200,9 +227,14 @@ h1 {
   height: 280px;
   right: -80px;
   top: -120px;
-  background: radial-gradient(circle, rgba(124,106,247,0.25), transparent 60%);
+  background: radial-gradient(circle, rgba(124,106,247,0.28), transparent 60%);
   pointer-events: none;
   filter: blur(40px);
+  animation: breathe 7s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1)    translate(0, 0);    opacity: 0.7; }
+  50%      { transform: scale(1.18) translate(-10px, 6px); opacity: 1; }
 }
 .focus-banner-icon {
   width: 48px;
@@ -1192,6 +1224,62 @@ body.drag-selecting * { cursor: crosshair !important; }
   to   { opacity: 0; transform: translateX(16px); }
 }
 
+/* ── Spring tap feedback (iOS-style tactile press) ──
+   Quick scale-down on press, springy release with slight overshoot.
+   Applies to all interactive controls except items already styled. */
+.filter-btn,
+.toggle-btn,
+.batch-btn,
+.import-row .import-btn,
+.btn-icon,
+.habit-check,
+.category-select-btn,
+.chapter-select-btn,
+.input-row button,
+button[type="submit"],
+.edit-actions .batch-btn {
+  transition: background 0.18s, border-color 0.18s, color 0.18s,
+              box-shadow 0.18s, transform 0.4s var(--spring);
+}
+.filter-btn:active,
+.toggle-btn:active,
+.batch-btn:active,
+.import-row .import-btn:active,
+.btn-icon:active,
+.habit-check:active,
+.category-select-btn:active,
+.chapter-select-btn:active,
+.input-row button:active,
+button[type="submit"]:active,
+.edit-actions .batch-btn:active {
+  transform: scale(0.94);
+  transition-duration: 0.08s;
+}
+
+/* Springier card entrance */
+.stat-cards .card,
+.focus-banner {
+  animation-timing-function: var(--spring) !important;
+}
+
+/* Springier edit-sheet open */
+.edit-sheet-panel {
+  transition:
+    transform 0.45s var(--spring),
+    opacity 0.22s ease;
+}
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .focus-banner-glow { animation: none; }
+  .nav-indicator { transition: none !important; }
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .stat-cards { grid-template-columns: repeat(2, 1fr); }
@@ -1226,61 +1314,60 @@ body.drag-selecting * { cursor: crosshair !important; }
     overflow-x: hidden;
   }
 
-  /* ── Sidebar becomes a bottom nav bar ── */
+  /* ── Liquid Glass floating bottom nav ── */
   .sidebar {
-    width: 100%;
+    width: auto;
     height: auto;
     top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
     flex-direction: row;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom)) 8px;
-    border-right: none;
-    border-top: 1px solid var(--border-soft);
-    background: rgba(18,18,26,0.92);
+    padding: 6px;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 26px;
+    background: rgba(18,18,26,0.62);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow:
+      0 16px 36px rgba(0,0,0,0.45),
+      0 4px 14px rgba(0,0,0,0.25),
+      inset 0 1px 0 rgba(255,255,255,0.06);
   }
   .logo, .sidebar-date { display: none; }
   nav {
     flex-direction: row;
     width: 100%;
     justify-content: space-around;
-    gap: 4px;
+    gap: 2px;
   }
   .nav-btn {
     flex: 1;
     flex-direction: column;
-    gap: 4px;
-    padding: 10px 4px 8px;
-    border-radius: 10px;
+    gap: 3px;
+    padding: 8px 4px;
+    border-radius: 18px;
     border-left: none !important;
     text-align: center;
-    min-height: 52px;
+    min-height: 48px;
     justify-content: center;
-    position: relative;
   }
   .nav-btn.active {
-    background: var(--accent-dim);
+    background: transparent;
     border-left: none;
   }
-  .nav-btn.active::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 28px;
-    height: 3px;
-    background: var(--accent);
-    border-radius: 0 0 3px 3px;
-    box-shadow: 0 2px 8px rgba(124,106,247,0.5);
+  /* sliding pill replaces the old top accent bar */
+  .nav-indicator {
+    border-radius: 18px;
+    border-color: rgba(124,106,247,0.32);
   }
-  .nav-icon { font-size: 18px; }
+  .nav-icon { font-size: 18px; line-height: 1; }
   .nav-label {
     display: block;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.02em;
+    line-height: 1;
   }
 
   /* ── Main content reflowed ── */
