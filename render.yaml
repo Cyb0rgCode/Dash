@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: dash
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DATA_DIR
+        value: /data
+    disk:
+      name: dash-data
+      mountPath: /data
+      sizeGB: 1

@@ -5,6 +5,8 @@ from database import get_db, init_db
 
 app = Flask(__name__)
 
+init_db()
+
 
 @app.route("/")
 def index():
@@ -355,5 +357,4 @@ def get_forecast():
 
 
 if __name__ == "__main__":
-    init_db()
     app.run(debug=True, port=5000, threaded=True)

@@ -1,7 +1,8 @@
+import os
 import sqlite3
 from datetime import date
 
-DB = "productivity.db"
+DB = os.path.join(os.environ.get("DATA_DIR", "."), "productivity.db")
 
 
 def get_db():
