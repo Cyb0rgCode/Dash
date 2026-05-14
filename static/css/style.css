@@ -74,7 +74,7 @@ body {
 .logo {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 6px;
   margin-bottom: 32px;
   padding: 0 6px;
   font-weight: 800;
