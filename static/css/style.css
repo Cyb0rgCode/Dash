@@ -1464,6 +1464,13 @@ button[type="submit"]:active,
     max-width: 100%;
   }
 
+  /* Each tab fills at least the viewport so swapping between a tall tab
+     (habits, tasks) and a short one (dashboard) doesn't change body height,
+     which would otherwise leave iOS Safari scrolled into empty space. */
+  .tab.active {
+    min-height: calc(100dvh - 120px);
+  }
+
   /* ── Headings ── */
   h1, .page-title { font-size: 24px !important; }
   h2 { font-size: 14px; margin: 14px 0 8px; }

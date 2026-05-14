@@ -83,7 +83,12 @@ $$(".nav-btn").forEach(btn => {
     activeTab = btn.dataset.tab;
     $(`#tab-${activeTab}`).classList.add("active");
     updateNavIndicator();
-    // 2. Defer the data fetch + render to the next frame so the tab swap
+    // 2. Reset scroll to top. Without this, switching from a tall tab
+    //    (habits, tasks with many items) to a shorter one (dashboard)
+    //    leaves the page scrolled mid-content on iOS Safari, which looks
+    //    like the page is broken.
+    window.scrollTo(0, 0);
+    // 3. Defer the data fetch + render to the next frame so the tab swap
     //    paints first. Otherwise the synchronous innerHTML rebuild and
     //    Chart.js work block the visible transition and feel laggy.
     requestAnimationFrame(() => {
