@@ -558,10 +558,6 @@ function patchTaskInDom(task) {
   }
 }
 
-function removeTaskFromDom(id) {
-  const li = $(`#task-list li[data-id="${id}"]`);
-  if (li) li.remove();
-}
 
 $("#batch-clear").addEventListener("click", () => {
   $$("#task-list li.selected").forEach(li => li.classList.remove("selected"));
@@ -626,12 +622,22 @@ $("#batch-done").addEventListener("click", async () => {
     const idx = allTasks.findIndex(a => a.id === t.id);
     if (idx >= 0) {
       allTasks[idx] = { ...allTasks[idx], completed: completed ? 1 : 0, completed_at: completed ? todayStr : null };
-      patchTaskInDom(allTasks[idx]);
     }
   });
-  $$("#task-list li.selected").forEach(li => li.classList.remove("selected"));
   selectedIds.clear();
-  updateBatchBar();
+  // If the new state no longer matches the current filter, full re-render
+  // so the rows disappear (and orphan headers clear). Otherwise patch in place.
+  const filterChanged = (taskFilter === "pending" && completed) || (taskFilter === "done" && !completed);
+  if (filterChanged) {
+    renderTasks();
+  } else {
+    sel.forEach(t => {
+      const idx = allTasks.findIndex(a => a.id === t.id);
+      if (idx >= 0) patchTaskInDom(allTasks[idx]);
+    });
+    $$("#task-list li.selected").forEach(li => li.classList.remove("selected"));
+    updateBatchBar();
+  }
   toast(completed
     ? `${sel.length} task${sel.length === 1 ? "" : "s"} done`
     : `${sel.length} task${sel.length === 1 ? "" : "s"} reopened`);
@@ -640,10 +646,9 @@ $("#batch-done").addEventListener("click", async () => {
 $("#batch-delete").addEventListener("click", async () => {
   const ids = [...selectedIds];
   await Promise.all(ids.map(id => api(`/api/tasks/${id}`, "DELETE")));
-  ids.forEach(removeTaskFromDom);
   allTasks = allTasks.filter(t => !selectedIds.has(t.id));
   selectedIds.clear();
-  updateBatchBar();
+  renderTasks(); // re-render to drop orphan category/chapter headers + show empty state
   toast(`Deleted ${ids.length} task${ids.length === 1 ? "" : "s"}`);
 });
 
