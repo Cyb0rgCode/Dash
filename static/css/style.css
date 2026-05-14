@@ -1474,16 +1474,26 @@ button[type="submit"]:active,
     min-height: calc(100dvh - 120px);
   }
 
-  /* ── Headings ── */
-  h1, .page-title { font-size: 24px !important; }
-  h2 { font-size: 14px; margin: 14px 0 8px; }
-  .page-header { margin-bottom: 16px; }
-  .page-subtitle { font-size: 13px; }
+  /* ── Headings (tightened for 393×852 iPhone viewport) ── */
+  h1, .page-title { font-size: 22px !important; }
+  h2 { font-size: 13px; margin: 12px 0 6px; }
+  .page-header { margin-bottom: 10px; }
+  .page-subtitle { font-size: 11px; }
   /* Habits & Goals stacked columns: tighter vertical rhythm */
   .two-col { gap: 14px; }
   /* Goal items: tighter padding on mobile */
-  .item-list li.goal-item { padding: 12px 14px; gap: 8px; }
+  .item-list li.goal-item { padding: 10px 12px; gap: 6px; }
   .goal-edit-inline .goal-input-inline { width: 56px; font-size: 13px; }
+
+  /* List items: trim padding and inter-item gap to fit ~6 visible rows */
+  .item-list { gap: 6px; }
+  .item-list li { padding: 10px 12px; gap: 10px; }
+  .item-list li.empty-state { padding: 28px 20px !important; }
+  .empty-state-icon { width: 36px; height: 36px; }
+  .empty-state-icon svg { width: 18px; height: 18px; }
+
+  /* Trim top padding on .content so the page header sits closer to the top */
+  .content { padding-top: 12px; }
 
   /* ── Habits & Goals: single-pane segmented layout (matches Tasks page) ── */
   .habits-section-tabs { display: inline-flex; }
@@ -1508,10 +1518,10 @@ button[type="submit"]:active,
   .chart-card { padding: 16px; }
   .chart-card canvas { max-height: 240px; }
 
-  /* ── Forms: stack everything vertically ── */
+  /* ── Forms: stack everything vertically (tightened density) ── */
   .input-row {
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
   .input-row input,
   .input-row select,
@@ -1519,15 +1529,15 @@ button[type="submit"]:active,
   .input-row .toggle-btn {
     width: 100%;
     min-width: 0 !important;
-    padding: 12px 14px;
+    padding: 9px 12px;
   }
   /* Goal inline-row: keep horizontal, scroll if tight */
   .inline-row { flex-direction: row; overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; gap: 8px; }
   .inline-row input { min-width: 80px; width: auto; flex: 1; }
 
-  /* ── Import row buttons ── */
-  .import-row { flex-wrap: wrap; gap: 8px; }
-  .import-row .import-btn { flex: 1; min-width: 140px; justify-content: center; padding: 10px 12px; }
+  /* ── Import row buttons (compact) ── */
+  .import-row { flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .import-row .import-btn { flex: 1; min-width: 130px; justify-content: center; padding: 7px 10px; }
 
   /* ── Filter row: horizontal scroll if needed ── */
   .filter-row {
@@ -1535,8 +1545,9 @@ button[type="submit"]:active,
     -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap;
     padding-bottom: 4px;
+    margin-bottom: 10px;
   }
-  .filter-btn { flex-shrink: 0; padding: 8px 14px; }
+  .filter-btn { flex-shrink: 0; padding: 6px 12px; }
 
   /* ── Batch bar: stack contents, scroll inner actions ── */
   .batch-bar {
@@ -1596,18 +1607,18 @@ button[type="submit"]:active,
   .toggle-pair {
     display: flex;
     flex-direction: row;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
   }
   /* Each child shares space equally regardless of width: 100% from general rule */
   .form-row-2 > *,
   .toggle-pair > * { flex: 1; }
   /* Toggles: tighter horizontal padding so "Urgent" + "Important" fit side by side */
-  .toggle-pair > .toggle-btn { padding: 10px 8px; }
-  /* Submit buttons: slightly less vertical padding than inputs */
+  .toggle-pair > .toggle-btn { padding: 8px 8px; }
+  /* Submit buttons: snappier height than inputs */
   #task-form > button[type="submit"],
   #habit-form > button[type="submit"],
-  #goal-form > button[type="submit"] { padding: 10px 14px; }
+  #goal-form > button[type="submit"] { padding: 9px 14px; }
 
   /* ── Log-mins inline: too fiddly on touch, hide it ── */
   .log-mins-inline { display: none !important; }
