@@ -76,16 +76,22 @@ function updateNavIndicator(animate = true) {
 
 $$(".nav-btn").forEach(btn => {
   btn.addEventListener("click", () => {
+    // 1. Synchronous DOM swap so the tab visually flips instantly
     $$(".nav-btn").forEach(b => b.classList.remove("active"));
     $$(".tab").forEach(t => t.classList.remove("active"));
     btn.classList.add("active");
     activeTab = btn.dataset.tab;
     $(`#tab-${activeTab}`).classList.add("active");
     updateNavIndicator();
-    if (activeTab === "dashboard") loadDashboard();
-    if (activeTab === "tasks")    { loadTasks(); requestAnimationFrame(() => updateFilterIndicator(false)); }
-    if (activeTab === "habits")   { loadHabits(); loadGoals(); }
-    if (activeTab === "matrix")   loadMatrix();
+    // 2. Defer the data fetch + render to the next frame so the tab swap
+    //    paints first. Otherwise the synchronous innerHTML rebuild and
+    //    Chart.js work block the visible transition and feel laggy.
+    requestAnimationFrame(() => {
+      if (activeTab === "dashboard") loadDashboard();
+      else if (activeTab === "tasks")  { loadTasks(); updateFilterIndicator(false); }
+      else if (activeTab === "habits") { Promise.all([loadHabits(), loadGoals()]); }
+      else if (activeTab === "matrix") loadMatrix();
+    });
   });
 });
 
@@ -203,7 +209,17 @@ function overlayForecast(forecastData) {
 function renderDailyChart(data) {
   const canvas = $("#chart-daily");
   const ctx = canvas.getContext("2d");
-  if (dailyChart) dailyChart.destroy();
+  const labels = data.map(d => new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric" }));
+  const values = data.map(d => d.total);
+
+  // PERF: update in place instead of destroy + recreate (Chart.js destroy
+  // is ~100ms and triggers a full canvas tear-down).
+  if (dailyChart) {
+    dailyChart.data.labels = labels;
+    dailyChart.data.datasets[0].data = values;
+    dailyChart.update("none");
+    return;
+  }
 
   const gradient = ctx.createLinearGradient(0, 0, 0, 220);
   gradient.addColorStop(0, "rgba(124,106,247,0.95)");
@@ -215,9 +231,9 @@ function renderDailyChart(data) {
   dailyChart = new Chart(ctx, {
     type: "bar",
     data: {
-      labels: data.map(d => new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric" })),
+      labels,
       datasets: [{
-        data: data.map(d => d.total),
+        data: values,
         backgroundColor: gradient,
         hoverBackgroundColor: hoverGrad,
         borderRadius: 8,
@@ -252,16 +268,30 @@ function renderDailyChart(data) {
 
 function renderPriorityChart(data) {
   const ctx = $("#chart-priority").getContext("2d");
-  if (priorityChart) priorityChart.destroy();
-  if (!data.length) return;
+  if (!data.length) {
+    if (priorityChart) { priorityChart.destroy(); priorityChart = null; }
+    return;
+  }
   const colorMap = { high: "#f76a8c", medium: "#f7c76a", low: "#6af7c8" };
   const colors = data.map(d => colorMap[d.category] || "#7c75ff");
+  const labels = data.map(d => d.category.charAt(0).toUpperCase() + d.category.slice(1));
+  const values = data.map(d => d.total);
+
+  // PERF: update in place instead of destroy + recreate
+  if (priorityChart) {
+    priorityChart.data.labels = labels;
+    priorityChart.data.datasets[0].data = values;
+    priorityChart.data.datasets[0].backgroundColor = colors;
+    priorityChart.update("none");
+    return;
+  }
+
   priorityChart = new Chart(ctx, {
     type: "doughnut",
     data: {
-      labels: data.map(d => d.category.charAt(0).toUpperCase() + d.category.slice(1)),
+      labels,
       datasets: [{
-        data: data.map(d => d.total),
+        data: values,
         backgroundColor: colors,
         borderColor: "#0a0a0f",
         borderWidth: 3,
@@ -1014,23 +1044,21 @@ async function loadGoals() {
   list.innerHTML = goals.map(g => {
     const pct = Math.min(100, Math.round((g.current_value / g.target_value) * 100));
     return `
-      <li data-id="${g.id}" style="flex-direction:column;align-items:stretch;gap:8px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span class="item-title" style="flex:1">${escHtml(g.title)}</span>
+      <li class="goal-item" data-id="${g.id}">
+        <div class="goal-head">
+          <span class="item-title">${escHtml(g.title)}</span>
           ${g.deadline ? `<span class="item-meta">${g.deadline}</span>` : ""}
           <button class="btn-icon" data-action="delete" title="Delete">✕</button>
         </div>
         <div class="goal-progress-wrap">
           <div class="goal-bar-bg"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
           <div class="goal-label-row">
-            <span>${g.current_value} / ${g.target_value} ${escHtml(g.unit)}</span>
-            <span>${pct}%</span>
+            <span>${g.current_value} / ${g.target_value} ${escHtml(g.unit)} · ${pct}%</span>
+            <span class="goal-edit-inline">
+              <input class="goal-input-inline" type="number" data-action="update-val" value="${g.current_value}" min="0" max="${g.target_value}" step="any" />
+              <button class="btn-icon goal-save-btn" data-action="save-val" title="Save">✓</button>
+            </span>
           </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <span style="color:var(--muted);font-size:12px;">Update progress:</span>
-          <input class="goal-input-inline" type="number" data-action="update-val" value="${g.current_value}" min="0" max="${g.target_value}" step="any" />
-          <button class="btn-icon" data-action="save-val" style="color:var(--green)" title="Save">✓</button>
         </div>
       </li>
     `;
