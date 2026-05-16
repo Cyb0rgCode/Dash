@@ -82,21 +82,9 @@ body {
   letter-spacing: -0.02em;
   font-family: 'Syne', sans-serif;
 }
-.logo-mark-img {
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-  object-fit: contain;
-  /* Layered mint + violet glow that radiates around the husky */
-  filter:
-    drop-shadow(0 0 6px  rgba(106,247,200,0.55))
-    drop-shadow(0 0 14px rgba(106,247,200,0.35))
-    drop-shadow(0 0 10px rgba(124,106,247,0.55))
-    drop-shadow(0 0 22px rgba(124,106,247,0.35));
-}
 .logo-text {
   white-space: nowrap;
-  font-size: 18px;
+  font-size: 24px;
   line-height: 1;
 }
 .logo-text span {
