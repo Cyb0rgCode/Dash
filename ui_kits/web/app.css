@@ -102,26 +102,28 @@ nav.snav { display: flex; flex-direction: column; gap: 2px; position: relative; 
   letter-spacing: 0.04em;
 }
 
-/* ── Theme toggle (iOS-style segmented sun/moon) ─────────────────────────── */
+/* ── Theme toggle (iOS-style segmented sun/moon, compact) ────────────────── */
 .sidebar-foot {
   margin-top: auto;
   display: flex; flex-direction: column;
+  align-items: flex-start;   /* keep the pill at its natural width */
   gap: 10px;
 }
+.sidebar-foot .sidebar-date { align-self: stretch; }
 .theme-toggle {
   position: relative;
-  align-self: stretch;
   display: inline-flex;
   padding: 3px;
   background: var(--glass-elev);
   border: 1px solid var(--glass-elev-line);
   border-radius: 999px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.05);
+  /* Use fixed pixel widths so Safari/iOS layout matches Chrome exactly. */
 }
 .theme-toggle-indicator {
   position: absolute;
-  top: 3px; bottom: 3px; left: 3px;
-  width: calc(50% - 3px);
+  top: 3px; left: 3px;
+  width: 32px; height: 22px;
   background: var(--glass-pill);
   border: 1px solid var(--glass-pill-line);
   border-radius: 999px;
@@ -130,21 +132,23 @@ nav.snav { display: flex; flex-direction: column; gap: 2px; position: relative; 
   transition: transform 0.42s var(--spring);
 }
 .theme-toggle[data-theme="light"] .theme-toggle-indicator { transform: translateX(0); }
-.theme-toggle[data-theme="dark"]  .theme-toggle-indicator { transform: translateX(100%); }
+.theme-toggle[data-theme="dark"]  .theme-toggle-indicator { transform: translateX(32px); }
 .theme-opt {
   position: relative; z-index: 1;
-  flex: 1;
-  height: 28px;
+  width: 32px; height: 22px;
+  flex: 0 0 32px;
   border: none; background: none;
+  padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--fg-2);
   cursor: pointer;
   border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
   transition: color 0.2s, transform 0.4s var(--spring);
 }
-.theme-opt:active { transform: scale(0.92); transition-duration: 0.08s; }
+.theme-opt:active { transform: scale(0.88); transition-duration: 0.08s; }
 .theme-opt[aria-pressed="true"] { color: var(--accent); }
-.theme-opt svg { width: 15px; height: 15px; }
+.theme-opt svg { width: 12px; height: 12px; }
 
 /* ── Content ─────────────────────────────────────────────────────────────── */
 .content {

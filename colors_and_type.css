@@ -159,51 +159,63 @@
 }
 
 /* ============================================================================
-   Light theme — modern, soft cool whites with the same violet→mint accents.
+   Light theme — "frosted Husky": cool blue-white surfaces, deep violet ink,
+   the same violet→mint accents retuned to read on white. Apple-style
+   premium feel rather than generic IDE gray.
    Activated by setting `data-theme="light"` on <html>.
    ============================================================================ */
 :root[data-theme="light"] {
-  /* Surfaces — soft cool whites, never pure white for the page */
-  --hk-bg:           #f6f6fb;   /* page */
-  --hk-surface:      #ffffff;   /* cards */
-  --hk-surface-2:    #f0f0f7;   /* inputs, secondary panels */
-  --hk-border:       #e3e3ed;   /* hairlines */
-  --hk-border-soft:  #ededf3;   /* dividers, sidebar edge */
+  /* Surfaces — frosted blue-whites with subtle violet undertone */
+  --hk-bg:           #f4f5fb;   /* page — pale cool wash, not pure gray */
+  --hk-surface:      #ffffff;   /* cards — clean white pops against the wash */
+  --hk-surface-2:    #ecedf6;   /* inputs / secondary panels — soft frost */
+  --hk-border:       #dadcec;   /* hairlines — slightly violet, visible */
+  --hk-border-soft:  #e7e9f2;   /* dividers, sidebar edge */
 
-  /* Text — near-black with a faint blue cast to echo the brand */
-  --hk-text:         #15151e;
-  --hk-muted:        #6f6f95;
+  /* Text — deep midnight-violet to match the brand's dark surfaces */
+  --hk-text:         #0f1024;
+  --hk-muted:        #6a6d8e;
 
-  /* Accent tints — stronger so they remain visible on white */
-  --hk-violet-dim:   rgba(124, 106, 247, 0.12);
-  --hk-mint-dim:     rgba(106, 247, 200, 0.20);
-  --hk-pink-dim:     rgba(247, 106, 140, 0.12);
-  --hk-amber-dim:    rgba(247, 199, 106, 0.18);
+  /* Accent tints — stronger on white, so they don't disappear */
+  --hk-violet-dim:   rgba(124, 106, 247, 0.13);
+  --hk-mint-dim:     rgba( 22, 184, 156, 0.14);   /* note: shifted toward deeper teal */
+  --hk-pink-dim:     rgba(247, 106, 140, 0.13);
+  --hk-amber-dim:    rgba(247, 174,  66, 0.18);
 
-  /* Ambient body wash — slightly stronger, since light bg shows less of it */
+  /* Brand gradient — start at the same violet, end on a deeper teal that
+     actually reads on white (mint #6af7c8 vanishes against #fff). */
+  --hk-gradient-brand: linear-gradient(135deg,
+    #7c6af7  0%,
+    #5d4ef0 45%,
+    #1ab592 100%
+  );
+  --hk-gradient-bar:   linear-gradient(90deg, #7c6af7, #1ab592);
+  --hk-gradient-card:  linear-gradient(135deg, rgba(124,106,247,0.10) 0%, rgba(26,181,146,0.06) 100%);
+
+  /* Ambient body wash — slightly stronger so the page doesn't feel flat */
   --hk-ambient-bg:
-    radial-gradient(ellipse 900px 600px at 0%   0%,   rgba(124, 106, 247, 0.07), transparent 60%),
-    radial-gradient(ellipse 800px 500px at 100% 100%, rgba(106, 247, 200, 0.06), transparent 60%);
+    radial-gradient(ellipse 900px 600px at 0%   0%,   rgba(124, 106, 247, 0.10), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 100% 100%, rgba( 26, 181, 146, 0.08), transparent 60%);
 
-  /* Shadows — soft, cool, low-opacity instead of pure black */
-  --shadow-sm:            0 1px 2px rgba(20, 20, 40, 0.05), 0 2px 8px rgba(20, 20, 40, 0.04);
-  --shadow-md:            0 4px 12px rgba(20, 20, 40, 0.06), 0 16px 36px rgba(20, 20, 40, 0.08);
-  --shadow-glow:          0 0 0 1px rgba(20, 20, 40, 0.04), 0 14px 40px rgba(20, 20, 40, 0.10);
-  --shadow-accent:        0 4px 14px rgba(124, 106, 247, 0.22);
-  --shadow-accent-strong: 0 6px 20px rgba(124, 106, 247, 0.32);
+  /* Shadows — cool blue-tinted instead of black; gives cards genuine lift */
+  --shadow-sm:            0 1px 2px rgba(28, 30, 60, 0.06), 0 2px 10px rgba(28, 30, 60, 0.06);
+  --shadow-md:            0 4px 12px rgba(28, 30, 60, 0.08), 0 16px 36px rgba(28, 30, 60, 0.10);
+  --shadow-glow:          0 0 0 1px rgba(28, 30, 60, 0.05), 0 14px 40px rgba(28, 30, 60, 0.10);
+  --shadow-accent:        0 4px 14px rgba(124, 106, 247, 0.25);
+  --shadow-accent-strong: 0 6px 20px rgba(124, 106, 247, 0.34);
 
-  /* Glass — white-tinted instead of dark-tinted */
+  /* Glass — frosted white */
   --glass-tint:        rgba(255, 255, 255, 0.78);
-  --glass-elev:        rgba(20, 20, 40, 0.04);
-  --glass-elev-line:   rgba(20, 20, 40, 0.06);
-  --glass-pill:        linear-gradient(180deg, #ffffff, #f4f4fa);
-  --glass-pill-line:   rgba(20, 20, 40, 0.08);
-  --glass-pill-shadow: 0 1px 3px rgba(20, 20, 40, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-elev:        rgba(28, 30, 60, 0.05);
+  --glass-elev-line:   rgba(28, 30, 60, 0.08);
+  --glass-pill:        linear-gradient(180deg, #ffffff, #f1f2f9);
+  --glass-pill-line:   rgba(28, 30, 60, 0.10);
+  --glass-pill-shadow: 0 1px 3px rgba(28, 30, 60, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
-  /* Brand glows — much subtler on white so the logo doesn't smear */
-  --logo-glow:      0 1px 2px rgba(124, 106, 247, 0.12), 0 0 18px rgba(124, 106, 247, 0.10);
-  --logo-mark-glow: drop-shadow(0 2px 8px rgba(124, 106, 247, 0.28))
-                    drop-shadow(0 6px 18px rgba(106, 247, 200, 0.18));
+  /* Brand glows — toned way down on white so the logo doesn't smear */
+  --logo-glow:      0 1px 2px rgba(124, 106, 247, 0.12), 0 0 14px rgba(124, 106, 247, 0.08);
+  --logo-mark-glow: drop-shadow(0 2px 8px rgba(124, 106, 247, 0.22))
+                    drop-shadow(0 6px 16px rgba( 26, 181, 146, 0.14));
 }
 
 /* ============================================================================
