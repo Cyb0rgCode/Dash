@@ -108,6 +108,7 @@ requestAnimationFrame(() => updateNavIndicator(false));
 
 let dailyChart = null;
 let priorityChart = null;
+let forecastLoaded = false;
 
 async function loadDashboard() {
   const [analytics, tasks] = await Promise.all([
@@ -139,7 +140,7 @@ async function loadDashboard() {
 
   renderDailyChart(analytics.daily_time);
   renderPriorityChart(analytics.time_by_category);
-  loadForecast();
+  if (!forecastLoaded) loadForecast();
 }
 
 async function loadForecast() {
@@ -154,6 +155,7 @@ async function loadForecast() {
     badge.remove();
     if (data.forecast && data.forecast.length) {
       overlayForecast(data.forecast);
+      forecastLoaded = true;
     }
   } catch (_) {
     badge.textContent = "Forecast unavailable";
