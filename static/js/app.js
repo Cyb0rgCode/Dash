@@ -941,7 +941,18 @@ $("#task-import-input").addEventListener("change", async e => {
 
 $("#copy-prompt-btn").addEventListener("click", async () => {
   try {
-    await navigator.clipboard.writeText(AI_PROMPT);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(AI_PROMPT);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = AI_PROMPT;
+      ta.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
     toast("Prompt copied — paste it into any AI chat");
   } catch {
     toast("Copy failed — check browser permissions", "error");
