@@ -1,4 +1,4 @@
-// ── Theme (iOS-style segmented sun/moon toggle) ────────────────────────────────
+// ── Theme (Single button with rotating sun/moon icons) ──────────────────────────
 
 // Apply saved theme immediately so the page doesn't flash the wrong palette.
 (function () {
@@ -13,17 +13,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
     else document.documentElement.removeAttribute("data-theme");
     localStorage.setItem("theme", theme);
-    if (toggle) toggle.dataset.theme = theme;
-    document.querySelectorAll(".theme-opt").forEach(b => {
-      b.setAttribute("aria-pressed", b.dataset.mode === theme ? "true" : "false");
-    });
   }
 
-  applyTheme(localStorage.getItem("theme") || "light");
+  const currentTheme = localStorage.getItem("theme") || "light";
+  applyTheme(currentTheme);
 
-  document.querySelectorAll(".theme-opt").forEach(b => {
-    b.addEventListener("click", () => applyTheme(b.dataset.mode));
-  });
+  if (toggle) {
+    toggle.addEventListener("click", () => {
+      const isCurrentlyDark = document.documentElement.getAttribute("data-theme") === "dark";
+      applyTheme(isCurrentlyDark ? "light" : "dark");
+    });
+  }
 });
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
