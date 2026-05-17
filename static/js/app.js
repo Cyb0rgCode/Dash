@@ -476,6 +476,7 @@ function renderFocusBanner(tasks) {
 let allTasks = [];
 let taskFilter = "all";
 let selectedIds = new Set();
+let suppressNextTaskClick = false;
 
 async function loadTasks() {
   allTasks = await api("/api/tasks");
