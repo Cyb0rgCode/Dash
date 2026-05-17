@@ -1,36 +1,28 @@
-// ── Theme ──────────────────────────────────────────────────────────────────────
+// ── Theme (iOS-style segmented sun/moon toggle) ────────────────────────────────
 
+// Apply saved theme immediately so the page doesn't flash the wrong palette.
 (function () {
   const saved = localStorage.getItem("theme") || "light";
   if (saved === "dark") document.documentElement.setAttribute("data-theme", "dark");
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = $("#theme-toggle");
-  const moon = $("#theme-icon-moon");
-  const sun = $("#theme-icon-sun");
-  const label = $("#theme-label");
+  const toggle = document.querySelector("#theme-toggle");
 
   function applyTheme(theme) {
-    if (theme === "dark") {
-      document.documentElement.setAttribute("data-theme", "dark");
-      moon.hidden = true;
-      sun.hidden = false;
-      label.textContent = "Light mode";
-    } else {
-      document.documentElement.removeAttribute("data-theme");
-      moon.hidden = false;
-      sun.hidden = true;
-      label.textContent = "Dark mode";
-    }
+    if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
+    else document.documentElement.removeAttribute("data-theme");
     localStorage.setItem("theme", theme);
+    if (toggle) toggle.dataset.theme = theme;
+    document.querySelectorAll(".theme-opt").forEach(b => {
+      b.setAttribute("aria-pressed", b.dataset.mode === theme ? "true" : "false");
+    });
   }
 
   applyTheme(localStorage.getItem("theme") || "light");
 
-  btn.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-    applyTheme(current === "dark" ? "light" : "dark");
+  document.querySelectorAll(".theme-opt").forEach(b => {
+    b.addEventListener("click", () => applyTheme(b.dataset.mode));
   });
 });
 

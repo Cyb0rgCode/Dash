@@ -195,23 +195,51 @@ nav { display: flex; flex-direction: column; gap: 2px; position: relative; }
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.04em;
 }
+/* ── Theme toggle (iOS-style segmented sun/moon pill) ──────────────────── */
 .theme-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 10px;
-  background: none;
-  border: none;
-  border-top: 1px solid var(--border-soft);
-  color: var(--muted);
-  font-size: 13px;
-  font-family: 'Syne', sans-serif;
-  cursor: pointer;
-  text-align: left;
-  transition: color 0.2s;
+  position: relative;
+  align-self: flex-start;
+  display: inline-flex;
+  padding: 3px;
+  margin: 8px 4px 0;
+  background: var(--surface2);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.04);
 }
-.theme-toggle:hover { color: var(--text); }
+.theme-toggle-indicator {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 32px; height: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.6);
+  pointer-events: none;
+  transition: transform 0.42s var(--spring);
+}
+.theme-toggle[data-theme="light"] .theme-toggle-indicator { transform: translateX(0); }
+.theme-toggle[data-theme="dark"]  .theme-toggle-indicator { transform: translateX(32px); }
+.theme-opt {
+  position: relative; z-index: 1;
+  width: 32px; height: 22px;
+  flex: 0 0 32px;
+  border: none;
+  background: none;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s, transform 0.4s var(--spring);
+}
+.theme-opt:active { transform: scale(0.88); transition-duration: 0.08s; }
+.theme-opt[aria-pressed="true"] { color: var(--accent); }
+.theme-opt svg { width: 12px; height: 12px; }
+[data-theme="dark"] .theme-toggle-indicator {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+}
 
 /* ── Main content ── */
 .content {
