@@ -1296,6 +1296,16 @@ $("#goal-list").addEventListener("click", async e => {
 
 let matrixTasks = [];
 
+// Quadrant → urgent/important flags
+const MATRIX_FLAGS = {
+  'matrix-q1': { urgent: true,  important: true  },  // Do First
+  'matrix-q2': { urgent: false, important: true  },  // Schedule
+  'matrix-q3': { urgent: true,  important: false },  // Delegate
+  'matrix-q4': { urgent: false, important: false },  // Eliminate
+};
+
+let matrixDragId = null;
+
 async function loadMatrix() {
   matrixTasks = await api("/api/tasks");
   const open = matrixTasks.filter(t => !t.completed);
@@ -1312,7 +1322,7 @@ function renderMatrixQuadrant(listId, tasks) {
     return;
   }
   list.innerHTML = tasks.map(t => `
-    <li class="matrix-task" data-id="${t.id}">
+    <li class="matrix-task" data-id="${t.id}" draggable="true">
       <button class="matrix-check" data-action="toggle" title="Mark complete"></button>
       <span>${escHtml(t.title)}</span>
       ${t.deadline ? `<span class="item-meta" style="margin-left:auto;font-size:11px">${t.deadline}</span>` : ""}
@@ -1327,6 +1337,68 @@ $("#tab-matrix").addEventListener("click", async e => {
   const id = Number(li.dataset.id);
   await api(`/api/tasks/${id}`, "PUT", { completed: true });
   toast("Task done");
+  loadMatrix();
+});
+
+// ── Matrix drag-and-drop ───────────────────────────────────────────────────────
+
+$("#tab-matrix").addEventListener("dragstart", e => {
+  const li = e.target.closest(".matrix-task[data-id]");
+  if (!li) { e.preventDefault(); return; }
+  matrixDragId = Number(li.dataset.id);
+  e.dataTransfer.effectAllowed = "move";
+  // Defer so the drag ghost captures the un-dimmed style
+  requestAnimationFrame(() => li.classList.add("dragging"));
+});
+
+$("#tab-matrix").addEventListener("dragend", () => {
+  matrixDragId = null;
+  $$(".matrix-task.dragging").forEach(el => el.classList.remove("dragging"));
+  $$(".matrix-quadrant.drag-over").forEach(el => el.classList.remove("drag-over"));
+});
+
+$("#tab-matrix").addEventListener("dragover", e => {
+  if (matrixDragId == null) return;
+  const q = e.target.closest(".matrix-quadrant");
+  if (!q) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  if (!q.classList.contains("drag-over")) {
+    $$(".matrix-quadrant.drag-over").forEach(el => el.classList.remove("drag-over"));
+    q.classList.add("drag-over");
+  }
+});
+
+$("#tab-matrix").addEventListener("dragleave", e => {
+  const q = e.target.closest(".matrix-quadrant");
+  if (!q) return;
+  // Only clear when the pointer genuinely leaves the quadrant box,
+  // not when it enters a child element inside it.
+  if (!q.contains(e.relatedTarget)) q.classList.remove("drag-over");
+});
+
+$("#tab-matrix").addEventListener("drop", async e => {
+  e.preventDefault();
+  const q = e.target.closest(".matrix-quadrant");
+  $$(".matrix-quadrant.drag-over").forEach(el => el.classList.remove("drag-over"));
+  if (!q || matrixDragId == null) return;
+
+  const listEl = q.querySelector(".matrix-task-list");
+  const flags  = listEl && MATRIX_FLAGS[listEl.id];
+  if (!flags) return;
+
+  const task = matrixTasks.find(t => t.id === matrixDragId);
+  if (!task) return;
+
+  // Skip API call if dropped on the same quadrant
+  if (!!task.urgent === flags.urgent && !!task.important === flags.important) return;
+
+  const label = q.querySelector(".quadrant-label")?.textContent ?? "quadrant";
+  await api(`/api/tasks/${matrixDragId}`, "PUT", {
+    urgent:    flags.urgent,
+    important: flags.important,
+  });
+  toast(`Moved to "${label}"`);
   loadMatrix();
 });
 

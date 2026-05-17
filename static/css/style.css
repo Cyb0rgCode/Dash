@@ -1567,6 +1567,28 @@ body.drag-selecting * { cursor: crosshair !important; }
 /* ── Matrix empty state ── */
 .matrix-empty { color: var(--muted); font-size: 11px; font-style: italic; padding: 4px 0; font-family: 'JetBrains Mono', monospace; }
 
+/* ── Matrix drag-and-drop ── */
+.matrix-task[draggable="true"] { cursor: grab; user-select: none; }
+.matrix-task[draggable="true"]:active { cursor: grabbing; }
+
+.matrix-task.dragging {
+  opacity: 0.3;
+  box-shadow: none !important;
+  border-style: dashed;
+}
+
+.matrix-quadrant {
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.matrix-quadrant.drag-over {
+  border-color: var(--accent) !important;
+  background: rgba(var(--accent-rgb), 0.06) !important;
+  box-shadow: inset 0 0 0 2px rgba(var(--accent-rgb), 0.22) !important;
+}
+.matrix-quadrant.drag-over .quadrant-label {
+  color: var(--accent);
+}
+
 /* ── Toast notifications ── */
 .toast-container {
   position: fixed; bottom: 24px; right: 24px;
