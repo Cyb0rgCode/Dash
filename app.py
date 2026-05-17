@@ -1,5 +1,6 @@
 import os
 import re
+import secrets
 import sqlite3
 from datetime import date, timedelta
 from functools import wraps
@@ -8,8 +9,42 @@ from flask import Flask, jsonify, request, render_template, session
 
 from database import get_db, init_db, get_user_by_username, create_user
 
+
+def _load_secret_key():
+    """Resolve Flask's session-signing key.
+
+    Order: SECRET_KEY env var → on-disk `.secret_key` next to the DB →
+    generate a fresh 384-bit key and persist it. The on-disk file is
+    git-ignored, so each install gets its own key without any setup.
+    """
+    env_key = os.environ.get("SECRET_KEY")
+    if env_key:
+        return env_key
+    path = os.path.join(os.environ.get("DATA_DIR", "."), ".secret_key")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            value = f.read().strip()
+        if value:
+            return value
+    except FileNotFoundError:
+        pass
+    value = secrets.token_urlsafe(48)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(value)
+        try:
+            os.chmod(path, 0o600)  # best effort; ignored on platforms without POSIX perms
+        except OSError:
+            pass
+    except OSError:
+        # Read-only filesystem? Fall back to an in-process key — sessions
+        # won't survive a restart, but the app still boots.
+        pass
+    return value
+
+
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "husky-dev-secret-change-me")
+app.secret_key = _load_secret_key()
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",

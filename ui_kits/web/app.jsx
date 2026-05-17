@@ -81,7 +81,7 @@ function Login({ onLogin }) {
             type="text"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            placeholder="e.g. sofien"
+            placeholder="user"
             minLength={2}
             maxLength={32}
             autoCapitalize="off"

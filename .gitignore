@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 productivity.db
 *.db
+.secret_key
