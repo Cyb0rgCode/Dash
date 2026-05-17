@@ -62,8 +62,14 @@
   --banner-bg: linear-gradient(135deg, rgba(107,86,240,0.10) 0%, rgba(13,158,184,0.06) 100%);
   --banner-border: rgba(107, 86, 240, 0.22);
   --banner-glow: radial-gradient(circle, rgba(107,86,240,0.22), transparent 60%);
-  --body-glow-1: radial-gradient(ellipse 800px 600px at 0% 0%, rgba(107,86,240,0.06), transparent 60%);
-  --body-glow-2: radial-gradient(ellipse 700px 500px at 100% 100%, rgba(13,158,184,0.05), transparent 60%);
+  --body-glow-1: radial-gradient(ellipse 1100px 750px at 0% 0%, rgba(107,86,240,0.10), transparent 62%);
+  --body-glow-2: radial-gradient(ellipse 950px 650px at 100% 100%, rgba(13,158,184,0.09), transparent 62%);
+  --body-glow-3: radial-gradient(ellipse 800px 600px at 100% 0%, rgba(13,158,184,0.06), transparent 65%);
+
+  /* Sticky group headers (categories / chapters) — theme-aware glass */
+  --sticky-header-bg: rgba(246, 246, 250, 0.82);
+  --sticky-header-bg-solid: rgba(246, 246, 250, 0.98);
+  --sticky-subheader-border: rgba(20, 20, 40, 0.08);
 
   --sidebar-w: 204px;
   --radius: 14px;
@@ -119,18 +125,23 @@
   --banner-bg: linear-gradient(135deg, rgba(124,106,247,0.12) 0%, rgba(106,247,200,0.06) 100%);
   --banner-border: rgba(124,106,247,0.25);
   --banner-glow: radial-gradient(circle, rgba(124,106,247,0.28), transparent 60%);
-  --body-glow-1: radial-gradient(ellipse 800px 600px at 0% 0%, rgba(124,106,247,0.07), transparent 60%);
-  --body-glow-2: radial-gradient(ellipse 700px 500px at 100% 100%, rgba(106,247,200,0.04), transparent 60%);
+  --body-glow-1: radial-gradient(ellipse 1100px 750px at 0% 0%, rgba(124,106,247,0.12), transparent 62%);
+  --body-glow-2: radial-gradient(ellipse 950px 650px at 100% 100%, rgba(106,247,200,0.07), transparent 62%);
+  --body-glow-3: radial-gradient(ellipse 800px 600px at 100% 0%, rgba(106,247,200,0.04), transparent 65%);
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.14);
   --shadow-md: 0 2px 6px rgba(0,0,0,0.22), 0 12px 32px rgba(0,0,0,0.32);
   --shadow-glow: 0 0 0 1px rgba(255,255,255,0.03), 0 12px 36px rgba(0,0,0,0.4);
+
+  --sticky-header-bg: rgba(10, 10, 15, 0.78);
+  --sticky-header-bg-solid: rgba(14, 14, 21, 0.96);
+  --sticky-subheader-border: rgba(30, 30, 46, 0.5);
 }
 
 body {
   font-family: 'Syne', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg);
-  background-image: var(--body-glow-1), var(--body-glow-2);
+  background-image: var(--body-glow-1), var(--body-glow-2), var(--body-glow-3);
   background-attachment: fixed;
   color: var(--text);
   display: flex;
@@ -947,6 +958,8 @@ h2 {
   padding: 7px 10px;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  row-gap: 3px;
   gap: 8px;
   font-size: 13px;
   font-family: 'Syne', sans-serif;
@@ -956,6 +969,22 @@ h2 {
 .matrix-task:hover { border-color: var(--accent); }
 .matrix-task.done { opacity: 0.4; }
 .matrix-task.done span { text-decoration: line-through; }
+
+/* Title flexes and shrinks; date stays whole and falls to a new line if
+   it can't fit alongside. Prevents the date from sliding past the right
+   edge of the quadrant at narrow widths. */
+.matrix-task > span:not(.item-meta) {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.matrix-task .item-meta {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin-left: auto;
+  max-width: 100%;
+}
 
 .matrix-check,
 .habit-check {
@@ -972,6 +1001,7 @@ h2 {
   padding: 0;
   margin: 0;
   font-size: 0;
+  line-height: 0;
   color: transparent;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 1px 2px rgba(20,20,40,0.05);
   transition:
@@ -1248,7 +1278,7 @@ h2 {
   align-items: center;
   gap: 10px;
   padding: 14px 16px 10px !important;
-  background: rgba(10,10,15,0.78) !important;
+  background: var(--sticky-header-bg) !important;
   backdrop-filter: blur(18px) saturate(180%);
   -webkit-backdrop-filter: blur(18px) saturate(180%);
   border: none !important;
@@ -1293,11 +1323,11 @@ h2 {
   padding: 6px 16px 4px 22px !important;
   background: none !important;
   border: none !important;
-  border-bottom: 1px solid rgba(30,30,46,0.5) !important;
+  border-bottom: 1px solid var(--sticky-subheader-border) !important;
   box-shadow: none !important;
   cursor: default;
 }
-.chapter-header:hover { transform: none !important; border-color: rgba(30,30,46,0.5) !important; box-shadow: none !important; }
+.chapter-header:hover { transform: none !important; border-color: var(--sticky-subheader-border) !important; box-shadow: none !important; }
 .chapter-header-name {
   font-size: 10px; font-weight: 600; color: var(--muted);
   letter-spacing: 0.06em; flex: 1;
@@ -1612,11 +1642,21 @@ body.drag-selecting * { cursor: crosshair !important; }
   align-items: center; gap: 6px; margin-bottom: 22px; text-align: center;
 }
 .auth-brand-text {
-  font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800;
+  font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 50%, var(--cyan) 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--cyan) 100%);
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: transparent;
+}
+[data-theme="dark"] .auth-brand-text {
+  background: none;
+  -webkit-text-fill-color: var(--text);
+  color: var(--text);
+  text-shadow:
+    0 0 6px  var(--logo-glow-1),
+    0 0 14px var(--logo-glow-1),
+    0 0 10px var(--logo-glow-2),
+    0 0 22px var(--logo-glow-2);
 }
 .auth-brand-sub {
   font-family: 'JetBrains Mono', monospace; font-size: 11px;
@@ -1775,7 +1815,7 @@ body.auth-visible #toast-container { visibility: hidden; }
 
   /* ── iOS PERFORMANCE FIXES ── */
   .category-header {
-    background: rgba(14,14,21,0.96) !important;
+    background: var(--sticky-header-bg-solid) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -1783,4 +1823,248 @@ body.auth-visible #toast-container { visibility: hidden; }
   .tab.active { animation: none; }
   .edit-sheet-backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(0,0,0,0.65); }
   body { background-attachment: scroll; background-image: none; background-color: var(--bg); }
+}
+
+/* ── Responsive safety net ───────────────────────────────────────────────────
+   Prevents content from getting cut off at awkward viewport widths. The grid /
+   flex containers below default to `min-width: auto` (= intrinsic content
+   width), which lets long task titles, chart canvases, or wide table-like
+   rows push their parents past the viewport edge and clip behind the
+   fixed sidebar or off the right side of the screen. Forcing min-width:0
+   lets every track collapse properly, and `overflow-wrap: anywhere` lets
+   long unbroken strings (URLs, no-space titles) hyphenate instead of
+   blowing the row out.                                                    */
+
+html, body {
+  /* `overflow-x: clip` is the right tool — it stops horizontal scroll
+     without breaking `position: sticky` (which `overflow: hidden` does).
+     Modern browsers support it; older ones fall back to the prior rule. */
+  overflow-x: hidden;
+  overflow-x: clip;
+  max-width: 100vw;
+}
+
+.content {
+  min-width: 0;
+  box-sizing: border-box;
+  width: calc(100% - var(--sidebar-w));
+}
+
+.tab,
+.stat-cards,
+.charts-row,
+.two-col,
+.matrix-layout,
+.matrix-grid,
+.matrix-quadrant,
+.habits-pane,
+.item-list,
+.input-row,
+.filter-row,
+.batch-bar {
+  min-width: 0;
+}
+
+.card,
+.chart-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Chart.js bakes inline width/height onto the canvas. Cap it so a slow
+   resize-observer tick can't briefly oversize the parent. */
+.chart-card canvas {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* Task / habit / goal rows: keep long titles inside the card. */
+.item-list li {
+  min-width: 0;
+}
+.item-list li .item-title,
+.matrix-task span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Focus banner gets a flex layout — give the long task title room to wrap. */
+.focus-banner-task {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Awkward zone: 720–900px desktop where the sidebar still claims 204px.
+   Reduce content gutters so cards don't get squeezed under their own
+   padding budget. */
+@media (min-width: 720.01px) and (max-width: 980px) {
+  .content { padding: 28px 24px; }
+  .stat-cards { gap: 12px; }
+  .charts-row { gap: 14px; }
+}
+
+/* Mobile already sets `.content { max-width: 100% }` and drops the sidebar.
+   Belt-and-braces: at any width below 720px, never let a child exceed the
+   content box. */
+@media (max-width: 720px) {
+  .content { width: 100%; }
+  .content > * { max-width: 100%; }
+}
+
+/* ── Fluid button sizing (desktop) ──────────────────────────────────────────
+   Buttons scale proportionally with viewport width using clamp(): the
+   coefficient gives a linear ramp from current desktop sizes at 720px to
+   roughly +3-4px at 1920px, so a wide monitor doesn't make controls look
+   miniature and a 720-980px window doesn't make them cramped. The mobile
+   breakpoint (≤720px) is intentionally excluded — it forces 16px on form
+   elements to stop iOS Safari from auto-zooming form fields. */
+@media (min-width: 720.01px) {
+  .input-row button,
+  button[type="submit"] {
+    font-size: clamp(12px, 0.17vw + 10.8px, 14px);
+    padding:   clamp(7px, 0.17vw + 5.8px, 9px) clamp(14px, 0.33vw + 11.6px, 18px);
+  }
+  .filter-btn {
+    font-size: clamp(9px, 0.13vw + 8px, 11px);
+    padding:   clamp(5px, 0.13vw + 4.1px, 7px) clamp(14px, 0.27vw + 12.1px, 18px);
+  }
+  .toggle-btn {
+    font-size: clamp(11px, 0.13vw + 10px, 13px);
+    padding:   clamp(6px, 0.13vw + 5.1px, 8px) clamp(11px, 0.27vw + 9.1px, 15px);
+  }
+  .batch-btn {
+    font-size: clamp(10px, 0.13vw + 9px, 12px);
+    padding:   clamp(4px, 0.13vw + 3.1px, 6px) clamp(10px, 0.27vw + 8.1px, 14px);
+  }
+  .import-row .import-btn {
+    font-size: clamp(10px, 0.13vw + 9px, 12px);
+    padding:   clamp(6px, 0.13vw + 5.1px, 8px) clamp(11px, 0.27vw + 9.1px, 15px);
+  }
+  .auth-submit {
+    font-size: clamp(13px, 0.25vw + 11.2px, 16px);
+    padding:   clamp(11px, 0.25vw + 9.2px, 14px) clamp(16px, 0.5vw + 12.4px, 22px);
+  }
+  .nav-btn {
+    font-size: clamp(12px, 0.17vw + 10.8px, 14px);
+    padding:   clamp(7px, 0.17vw + 5.8px, 9px) clamp(9px, 0.17vw + 7.8px, 11px);
+  }
+  .edit-actions .batch-btn {
+    font-size: clamp(11px, 0.17vw + 9.8px, 13px);
+    padding:   clamp(7px, 0.17vw + 5.8px, 9px) clamp(14px, 0.27vw + 12.1px, 18px);
+  }
+  /* Sidebar bottom strip: theme toggle + logout */
+  .theme-toggle, .sidebar-logout {
+    width:  clamp(26px, 0.33vw + 23.6px, 30px);
+    height: clamp(26px, 0.33vw + 23.6px, 30px);
+  }
+  /* Habit / matrix check buttons — keep them perfectly square at any width */
+  .habit-check,
+  .matrix-check {
+    width:  clamp(18px, 0.25vw + 16.2px, 21px);
+    height: clamp(18px, 0.25vw + 16.2px, 21px);
+  }
+}
+
+/* ── Tasks-tab buttons: trimmed for mobile ─────────────────────────────
+   The base mobile rule pins form elements to 16px (iOS Safari zoom guard),
+   but buttons don't trigger the zoom — so we can shrink them safely.
+   Filter pills, urgent/important toggles, import/export, batch, and Add
+   all get smaller type + padding so the tab doesn't feel button-heavy on
+   small screens. */
+@media (max-width: 720px) {
+  #tab-tasks .input-row button,
+  #tab-tasks button[type="submit"] {
+    font-size: 13px !important;
+    padding: 8px 14px !important;
+  }
+  #tab-tasks .filter-btn {
+    font-size: 10px !important;
+    padding: 5px 10px !important;
+  }
+  #tab-tasks .toggle-btn {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+  }
+  #tab-tasks .import-row .import-btn {
+    font-size: 11px !important;
+    padding: 6px 8px !important;
+    min-width: 0 !important;
+    gap: 5px;
+  }
+  #tab-tasks .import-row .import-btn svg { width: 12px; height: 12px; }
+  #tab-tasks .batch-btn {
+    font-size: 11px !important;
+    padding: 4px 9px !important;
+  }
+  #tab-tasks .batch-select {
+    font-size: 11px !important;
+    padding: 4px 8px !important;
+  }
+}
+
+/* ── Habits-tab segmented switcher: trimmed ──────────────────────────
+   The HABITS / GOALS segmented control sits inside .filter-row, which on
+   mobile inherits the 16px iOS-zoom guard. Buttons don't trigger that
+   zoom, so shrink them to match the tighter Tasks-tab treatment. */
+@media (max-width: 720px) {
+  #tab-habits .filter-row.habits-section-tabs .filter-btn {
+    font-size: 10px !important;
+    padding: 5px 12px !important;
+  }
+  #tab-habits .input-row button,
+  #tab-habits button[type="submit"] {
+    font-size: 13px !important;
+    padding: 8px 14px !important;
+  }
+}
+@media (min-width: 720.01px) {
+  #tab-habits .filter-row.habits-section-tabs .filter-btn {
+    font-size: clamp(9px, 0.1vw + 8.3px, 10px);
+    padding:   clamp(4px, 0.1vw + 3.3px, 6px) clamp(12px, 0.2vw + 10.6px, 16px);
+  }
+}
+
+/* ── Sidebar user pill: scroll-revealed on mobile ─────────────────────
+   At narrow widths the top-right pill (@username + theme toggle + logout)
+   competes with the page title for the same top corner. Hide it at the
+   top of the page and fade it in once the user starts scrolling — then
+   it acts like a sticky toolbar without crowding the header on entry. */
+@media (max-width: 720px) {
+  .sidebar-user {
+    top: calc(10px + env(safe-area-inset-top));
+    right: 12px;
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition:
+      opacity 0.22s var(--ease-out-quint, ease),
+      transform 0.28s var(--ease-out-quint, ease);
+  }
+  body.is-scrolled .sidebar-user {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+/* ── Tasks tab: keep the sticky category headers above the user pill ────
+   The floating @username pill is position: fixed (z-index 20) and was
+   covering the sticky "Select all" button inside .category-header (z-index 5).
+   When the Tasks tab is the active section, demote the pill below the
+   category headers so the controls stay tappable. */
+body:has(#tab-tasks.tab.active) .sidebar-user {
+  z-index: 1;
+}
+body:has(#tab-tasks.tab.active) .category-header {
+  z-index: 25;
+}
+
+/* Hide the @user pill when a sticky category header overlaps it.
+   Driven by JS (see app.js → syncScrollFlag). Uses the same transition
+   as the scroll-reveal so the pill fades out smoothly. */
+body.pill-covered .sidebar-user {
+  opacity: 0 !important;
+  transform: translateY(-8px) !important;
+  pointer-events: none !important;
 }

@@ -22,9 +22,56 @@ document.addEventListener("DOMContentLoaded", () => {
     toggle.addEventListener("click", () => {
       const isCurrentlyDark = document.documentElement.getAttribute("data-theme") === "dark";
       applyTheme(isCurrentlyDark ? "light" : "dark");
+      // Charts hold canvas-baked colors (gradients, tooltip skins, doughnut
+      // borders). Tear them down so they rebuild from the new CSS vars next
+      // time the dashboard loads.
+      try { if (typeof dailyChart    !== "undefined" && dailyChart)    dailyChart.destroy(); } catch (e) {}
+      try { if (typeof priorityChart !== "undefined" && priorityChart) priorityChart.destroy(); } catch (e) {}
+      if (typeof dailyChart    !== "undefined") dailyChart = null;
+      if (typeof priorityChart !== "undefined") priorityChart = null;
+      if (typeof forecastLoaded !== "undefined") forecastLoaded = false;
+      if (typeof activeTab !== "undefined" && activeTab === "dashboard" && typeof loadDashboard === "function") loadDashboard();
     });
   }
 });
+
+
+// ── Scroll-reveal: toggle a body class once the user scrolls a bit ──────────
+// Used on mobile to hide the floating @username pill at the page top and
+// fade it in once the user starts scrolling, so it doesn't crowd the title.
+(function () {
+  const THRESHOLD = 24; // px
+  let raf = null;
+  function rectsOverlap(a, b) {
+    return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+  }
+  function syncScrollFlag() {
+    raf = null;
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.classList.toggle("is-scrolled", y > THRESHOLD);
+    // Hide the floating @user pill whenever a sticky category header is
+    // sitting under it — the "Select all" control needs to stay tappable.
+    const pill = document.querySelector(".sidebar-user");
+    const tasksActive = document.querySelector("#tab-tasks.tab.active");
+    let covered = false;
+    if (pill && tasksActive) {
+      const pillRect = pill.getBoundingClientRect();
+      const headers = tasksActive.querySelectorAll(".category-header");
+      for (const h of headers) {
+        if (rectsOverlap(h.getBoundingClientRect(), pillRect)) { covered = true; break; }
+      }
+    }
+    document.body.classList.toggle("pill-covered", covered);
+  }
+  function onScroll() {
+    if (raf != null) return;
+    raf = requestAnimationFrame(syncScrollFlag);
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  // Initialize on load + after any tab swap that resets scroll to top.
+  syncScrollFlag();
+  document.addEventListener("DOMContentLoaded", syncScrollFlag);
+})();
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
 
@@ -220,17 +267,18 @@ function overlayForecast(forecastData) {
     ...newValues,
   ];
 
+  const tcF = themeChartColors();
   dailyChart.data.datasets.push({
     type: "line",
     label: "Forecast",
     data: lineData,
-    borderColor: "rgba(106,247,200,0.9)",
-    backgroundColor: "rgba(106,247,200,0.08)",
+    borderColor:           `rgba(${tcF.greenRGB}, 0.9)`,
+    backgroundColor:       `rgba(${tcF.greenRGB}, 0.08)`,
     borderWidth: 2,
     borderDash: [6, 4],
     pointRadius: 4,
-    pointBackgroundColor: "rgba(106,247,200,1)",
-    pointBorderColor: "#0a0a0f",
+    pointBackgroundColor:  `rgba(${tcF.greenRGB}, 1)`,
+    pointBorderColor:      tcF.canvasGap,
     pointBorderWidth: 2,
     tension: 0.35,
     fill: false,
@@ -244,6 +292,38 @@ function overlayForecast(forecastData) {
   badge.className = "forecast-badge";
   badge.textContent = "7d forecast";
   titleEl.appendChild(badge);
+}
+
+// ── Theme-aware chart colors ─────────────────────────────────────────────────
+// Resolves CSS custom properties at runtime so chart canvases match the
+// active theme. Reads on every render so a theme toggle picks up new values.
+function themeChartColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fb) => (cs.getPropertyValue(name).trim() || fb);
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const accentRGB = v("--accent-rgb", "124, 106, 247");
+  const greenRGB  = v("--green-rgb",  "106, 247, 200");
+  return {
+    isDark,
+    bg:       v("--bg",       "#0a0a0f"),
+    text:     v("--text",     "#e8e8f0"),
+    muted:    v("--muted",    "#6060a0"),
+    accent:   v("--accent",   "#7c6af7"),
+    accentRGB,
+    green:    v("--green",    "#6af7c8"),
+    greenRGB,
+    red:      v("--red",      "#f76a8c"),
+    yellow:   v("--yellow",   "#f7c76a"),
+    cyan:     v("--cyan",     "#6af7c8"),
+    // Tooltip skin: keep dark in both modes for legibility on the violet bars.
+    tooltipBg:     isDark ? "rgba(18,18,26,0.97)" : "rgba(20,20,40,0.94)",
+    tooltipBorder: `rgba(${accentRGB}, 0.4)`,
+    tooltipText:   "#f4f4fa",
+    gridLine:      isDark ? "rgba(30,30,46,0.8)" : "rgba(20,20,40,0.08)",
+    // Doughnut gap-ring + line-chart point border. Was hardcoded to #0a0a0f,
+    // which painted black gaps on a white page in light mode.
+    canvasGap:     v("--bg", isDark ? "#0a0a0f" : "#ffffff"),
+  };
 }
 
 function renderDailyChart(data) {
@@ -261,12 +341,13 @@ function renderDailyChart(data) {
     return;
   }
 
+  const tc = themeChartColors();
   const gradient = ctx.createLinearGradient(0, 0, 0, 220);
-  gradient.addColorStop(0, "rgba(124,106,247,0.95)");
-  gradient.addColorStop(1, "rgba(124,106,247,0.2)");
+  gradient.addColorStop(0, `rgba(${tc.accentRGB}, 0.95)`);
+  gradient.addColorStop(1, `rgba(${tc.accentRGB}, 0.2)`);
   const hoverGrad = ctx.createLinearGradient(0, 0, 0, 220);
-  hoverGrad.addColorStop(0, "rgba(157,143,255,1)");
-  hoverGrad.addColorStop(1, "rgba(106,247,200,0.4)");
+  hoverGrad.addColorStop(0, `rgba(${tc.accentRGB}, 1)`);
+  hoverGrad.addColorStop(1, `rgba(${tc.greenRGB}, 0.4)`);
 
   dailyChart = new Chart(ctx, {
     type: "bar",
@@ -287,11 +368,11 @@ function renderDailyChart(data) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: "rgba(18,18,26,0.97)",
-          borderColor: "rgba(124,106,247,0.4)",
+          backgroundColor: tc.tooltipBg,
+          borderColor: tc.tooltipBorder,
           borderWidth: 1,
-          titleColor: "#e8e8f0",
-          bodyColor: "#e8e8f0",
+          titleColor: tc.tooltipText,
+          bodyColor: tc.tooltipText,
           padding: 10,
           cornerRadius: 10,
           displayColors: false,
@@ -299,8 +380,8 @@ function renderDailyChart(data) {
         },
       },
       scales: {
-        x: { ticks: { color: "#6060a0", font: { size: 11, family: "JetBrains Mono" } }, grid: { display: false } },
-        y: { ticks: { color: "#6060a0", font: { size: 11, family: "JetBrains Mono" } }, grid: { color: "rgba(30,30,46,0.8)" }, beginAtZero: true, border: { display: false } },
+        x: { ticks: { color: tc.muted, font: { size: 11, family: "JetBrains Mono" } }, grid: { display: false } },
+        y: { ticks: { color: tc.muted, font: { size: 11, family: "JetBrains Mono" } }, grid: { color: tc.gridLine }, beginAtZero: true, border: { display: false } },
       },
     },
   });
@@ -312,8 +393,9 @@ function renderPriorityChart(data) {
     if (priorityChart) { priorityChart.destroy(); priorityChart = null; }
     return;
   }
-  const colorMap = { high: "#f76a8c", medium: "#f7c76a", low: "#6af7c8" };
-  const colors = data.map(d => colorMap[d.category] || "#7c75ff");
+  const tc = themeChartColors();
+  const colorMap = { high: tc.red, medium: tc.yellow, low: tc.green };
+  const colors = data.map(d => colorMap[d.category] || tc.accent);
   const labels = data.map(d => d.category.charAt(0).toUpperCase() + d.category.slice(1));
   const values = data.map(d => d.total);
 
@@ -333,7 +415,7 @@ function renderPriorityChart(data) {
       datasets: [{
         data: values,
         backgroundColor: colors,
-        borderColor: "#0a0a0f",
+        borderColor: tc.canvasGap,
         borderWidth: 3,
         hoverOffset: 8,
       }],
@@ -345,12 +427,14 @@ function renderPriorityChart(data) {
       plugins: {
         legend: {
           position: "bottom",
-          labels: { color: "#e8e8f0", boxWidth: 10, boxHeight: 10, padding: 14, usePointStyle: true, font: { size: 11, family: "JetBrains Mono", weight: "600" } },
+          labels: { color: tc.text, boxWidth: 10, boxHeight: 10, padding: 14, usePointStyle: true, font: { size: 11, family: "JetBrains Mono", weight: "600" } },
         },
         tooltip: {
-          backgroundColor: "rgba(18,18,26,0.97)",
-          borderColor: "rgba(124,106,247,0.4)",
+          backgroundColor: tc.tooltipBg,
+          borderColor: tc.tooltipBorder,
           borderWidth: 1,
+          titleColor: tc.tooltipText,
+          bodyColor: tc.tooltipText,
           padding: 10,
           cornerRadius: 10,
           callbacks: { label: c => ` ${c.label}: ${fmtTime(c.parsed)}` },
@@ -480,7 +564,7 @@ function renderTasks() {
           : t.important ? " li-important"
           : t.urgent    ? " li-urgent" : "";
         html += `<li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}${urgCls}" data-id="${t.id}">
-          <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete">${t.completed ? "✓" : ""}</button>
+          <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete" aria-label="${t.completed ? "Mark incomplete" : "Mark complete"}"></button>
           <span class="item-title">${escHtml(t.title)}</span>
           ${t.task_type ? `<span class="tag-type">${escHtml(t.task_type)}</span>` : ""}
           ${t.urgent ? '<span class="tag-urgent">! urgent</span>' : ""}
@@ -741,7 +825,7 @@ function patchTaskInDom(task) {
   const check = li.querySelector(".habit-check");
   if (check) {
     check.classList.toggle("done", !!task.completed);
-    check.textContent = task.completed ? "✓" : "";
+    check.setAttribute("aria-label", task.completed ? "Mark incomplete" : "Mark complete");
   }
   const badge = li.querySelector(".badge");
   if (badge) {
