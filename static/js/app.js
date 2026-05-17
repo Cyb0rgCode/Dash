@@ -1417,7 +1417,38 @@ let touchOverQ   = null;   // quadrant currently under the finger
 let touchActive  = false;  // true once the movement threshold is crossed
 let touchStartX  = 0;
 let touchStartY  = 0;
-const TOUCH_DRAG_THRESHOLD = 8; // px — below this we let the browser handle scroll/tap
+let touchLastY   = 0;      // most recent finger Y — read inside the autoscroll loop
+let autoScrollRAF = null;  // requestAnimationFrame id for edge autoscroll
+
+const TOUCH_DRAG_THRESHOLD = 8;  // px — below this we let the browser handle scroll/tap
+const SCROLL_EDGE_SIZE     = 80; // px from viewport edge that triggers autoscroll
+const SCROLL_MAX_SPEED     = 14; // px per frame at the very edge
+
+// Returns scroll velocity in px/frame based on finger distance from edge.
+// Positive = scroll down, negative = scroll up, 0 = no scroll.
+function edgeScrollSpeed(clientY) {
+  const vh = window.innerHeight;
+  if (clientY < SCROLL_EDGE_SIZE)
+    return -Math.round((1 - clientY / SCROLL_EDGE_SIZE) * SCROLL_MAX_SPEED);
+  if (clientY > vh - SCROLL_EDGE_SIZE)
+    return  Math.round(((clientY - (vh - SCROLL_EDGE_SIZE)) / SCROLL_EDGE_SIZE) * SCROLL_MAX_SPEED);
+  return 0;
+}
+
+function stopAutoScroll() {
+  if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
+}
+
+function startAutoScroll() {
+  if (autoScrollRAF) return; // already running
+  function tick() {
+    const speed = edgeScrollSpeed(touchLastY);
+    if (speed === 0) { autoScrollRAF = null; return; } // finger moved away from edge
+    window.scrollBy(0, speed);
+    autoScrollRAF = requestAnimationFrame(tick);
+  }
+  autoScrollRAF = requestAnimationFrame(tick);
+}
 
 (function wireMatrixTouch() {
   const tab = $("#tab-matrix");
@@ -1431,6 +1462,7 @@ const TOUCH_DRAG_THRESHOLD = 8; // px — below this we let the browser handle s
     touchActive  = false;
     touchStartX  = t.clientX;
     touchStartY  = t.clientY;
+    touchLastY   = t.clientY;
     const r      = li.getBoundingClientRect();
     touchOffsetX = t.clientX - r.left;
     touchOffsetY = t.clientY - r.top;
@@ -1439,6 +1471,7 @@ const TOUCH_DRAG_THRESHOLD = 8; // px — below this we let the browser handle s
   tab.addEventListener("touchmove", e => {
     if (!touchDragEl) return;
     const t = e.touches[0];
+    touchLastY = t.clientY; // always keep fresh so the autoscroll loop reads it
 
     if (!touchActive) {
       // Only commit to drag mode once the finger has moved enough — this
@@ -1464,12 +1497,16 @@ const TOUCH_DRAG_THRESHOLD = 8; // px — below this we let the browser handle s
       touchDragEl.classList.add("dragging");
     }
 
-    // Prevent page scroll while dragging
+    // Prevent page scroll while dragging (we handle it ourselves with autoscroll)
     e.preventDefault();
 
     // Move clone with the finger
     touchClone.style.left = `${t.clientX - touchOffsetX}px`;
     touchClone.style.top  = `${t.clientY - touchOffsetY}px`;
+
+    // Edge autoscroll — kick off the loop if near an edge, stop it if not
+    if (edgeScrollSpeed(t.clientY) !== 0) startAutoScroll();
+    else stopAutoScroll();
 
     // Find the quadrant under the finger (hide clone so it doesn't block hit-test)
     touchClone.style.visibility = "hidden";
@@ -1484,6 +1521,8 @@ const TOUCH_DRAG_THRESHOLD = 8; // px — below this we let the browser handle s
   }, { passive: false }); // passive:false so we can call preventDefault
 
   async function onTouchEnd() {
+    stopAutoScroll(); // always kill the scroll loop first
+
     const wasActive = touchActive;
     const q         = touchOverQ;
     const id        = touchDragId;
