@@ -1403,29 +1403,31 @@ $("#tab-matrix").addEventListener("drop", async e => {
 });
 
 // ── Matrix touch drag-and-drop (Safari / iOS) ─────────────────────────────────
-// The HTML5 drag API is not supported on touch devices. This parallel
-// implementation uses touchstart/touchmove/touchend to do the same thing:
-// a floating clone follows the finger and the quadrant under it highlights;
-// lifting the finger commits the move.
+// Uses a long-press (hold ~420 ms) to enter drag mode so that:
+//   • a short tap  → mark complete (unchanged)
+//   • a scroll     → normal page scroll (drag never activates)
+//   • a held press → drag mode: floating clone follows the finger,
+//                    edge autoscroll kicks in near viewport edges,
+//                    releasing over a quadrant commits the move.
 
-let touchDragId  = null;   // task id being dragged (null = no drag in progress)
-let touchDragEl  = null;   // original <li> (dimmed while dragging)
-let touchClone   = null;   // absolutely-positioned visual clone
-let touchOffsetX = 0;      // finger offset from clone's top-left corner
-let touchOffsetY = 0;
-let touchOverQ   = null;   // quadrant currently under the finger
-let touchActive  = false;  // true once the movement threshold is crossed
-let touchStartX  = 0;
-let touchStartY  = 0;
-let touchLastY   = 0;      // most recent finger Y — read inside the autoscroll loop
-let autoScrollRAF = null;  // requestAnimationFrame id for edge autoscroll
+let touchDragId   = null;   // task id being dragged
+let touchDragEl   = null;   // original <li> (dimmed while dragging)
+let touchClone    = null;   // fixed-position visual clone
+let touchOffsetX  = 0;      // finger offset inside the clone
+let touchOffsetY  = 0;
+let touchOverQ    = null;   // quadrant currently under the finger
+let touchActive   = false;  // true once long-press has fired and drag is live
+let touchStartX   = 0;
+let touchStartY   = 0;
+let touchLastY    = 0;      // updated every touchmove; read by autoscroll loop
+let longPressTimer = null;  // setTimeout handle
+let autoScrollRAF  = null;  // requestAnimationFrame handle
 
-const TOUCH_DRAG_THRESHOLD = 8;  // px — below this we let the browser handle scroll/tap
-const SCROLL_EDGE_SIZE     = 80; // px from viewport edge that triggers autoscroll
-const SCROLL_MAX_SPEED     = 14; // px per frame at the very edge
+const LONG_PRESS_MS    = 420; // ms hold before drag activates
+const SCROLL_CANCEL_PX = 10;  // px movement that cancels long-press (user is scrolling)
+const SCROLL_EDGE_SIZE = 80;  // px from viewport edge that triggers autoscroll
+const SCROLL_MAX_SPEED = 14;  // px/frame at the very edge
 
-// Returns scroll velocity in px/frame based on finger distance from edge.
-// Positive = scroll down, negative = scroll up, 0 = no scroll.
 function edgeScrollSpeed(clientY) {
   const vh = window.innerHeight;
   if (clientY < SCROLL_EDGE_SIZE)
@@ -1440,23 +1442,29 @@ function stopAutoScroll() {
 }
 
 function startAutoScroll() {
-  if (autoScrollRAF) return; // already running
-  function tick() {
-    const speed = edgeScrollSpeed(touchLastY);
-    if (speed === 0) { autoScrollRAF = null; return; } // finger moved away from edge
-    window.scrollBy(0, speed);
+  if (autoScrollRAF) return;
+  (function tick() {
+    const s = edgeScrollSpeed(touchLastY);
+    if (s === 0) { autoScrollRAF = null; return; }
+    window.scrollBy(0, s);
     autoScrollRAF = requestAnimationFrame(tick);
-  }
-  autoScrollRAF = requestAnimationFrame(tick);
+  })();
+}
+
+function cancelLongPress() {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+  touchDragEl?.classList.remove("press-hold");
 }
 
 (function wireMatrixTouch() {
   const tab = $("#tab-matrix");
 
+  // ── touchstart: record the task and start the long-press countdown ───────────
   tab.addEventListener("touchstart", e => {
     const li = e.target.closest(".matrix-task[data-id]");
     if (!li || e.target.closest(".matrix-check")) return;
-    const t = e.touches[0];
+
+    const t      = e.touches[0];
     touchDragEl  = li;
     touchDragId  = Number(li.dataset.id);
     touchActive  = false;
@@ -1466,70 +1474,81 @@ function startAutoScroll() {
     const r      = li.getBoundingClientRect();
     touchOffsetX = t.clientX - r.left;
     touchOffsetY = t.clientY - r.top;
+
+    // Visual "charging" hint — a subtle glow builds while the user holds
+    li.classList.add("press-hold");
+
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      touchActive = true;
+      li.classList.remove("press-hold");
+
+      // Light haptic on devices that support it (Android; silently ignored on iOS)
+      try { navigator.vibrate?.(25); } catch (_) {}
+
+      // Spawn the floating clone at the task's current screen position
+      const rect = li.getBoundingClientRect();
+      touchClone  = li.cloneNode(true);
+      touchClone.classList.add("matrix-drag-clone");
+      Object.assign(touchClone.style, {
+        position: "fixed", left: `${rect.left}px`, top: `${rect.top}px`,
+        width: `${rect.width}px`, pointerEvents: "none", zIndex: "9999",
+      });
+      document.body.appendChild(touchClone);
+      li.classList.add("dragging");
+    }, LONG_PRESS_MS);
   }, { passive: true });
 
+  // ── touchmove: cancel long-press on scroll; drive clone + autoscroll once live
   tab.addEventListener("touchmove", e => {
     if (!touchDragEl) return;
     const t = e.touches[0];
-    touchLastY = t.clientY; // always keep fresh so the autoscroll loop reads it
+    touchLastY = t.clientY;
 
     if (!touchActive) {
-      // Only commit to drag mode once the finger has moved enough — this
-      // lets short taps and vertical scrolls through untouched.
+      // If the finger moves before the timer fires the user is scrolling — abort
       const dx = Math.abs(t.clientX - touchStartX);
       const dy = Math.abs(t.clientY - touchStartY);
-      if (dx < TOUCH_DRAG_THRESHOLD && dy < TOUCH_DRAG_THRESHOLD) return;
-      touchActive = true;
-
-      // Build the floating clone
-      const r = touchDragEl.getBoundingClientRect();
-      touchClone = touchDragEl.cloneNode(true);
-      touchClone.classList.add("matrix-drag-clone");
-      Object.assign(touchClone.style, {
-        position:      "fixed",
-        left:          `${r.left}px`,
-        top:           `${r.top}px`,
-        width:         `${r.width}px`,
-        pointerEvents: "none",
-        zIndex:        "9999",
-      });
-      document.body.appendChild(touchClone);
-      touchDragEl.classList.add("dragging");
+      if (dx > SCROLL_CANCEL_PX || dy > SCROLL_CANCEL_PX) {
+        cancelLongPress();
+        touchDragEl = null;
+        touchDragId = null;
+      }
+      return; // don't preventDefault — let the page scroll freely
     }
 
-    // Prevent page scroll while dragging (we handle it ourselves with autoscroll)
+    // Drag is live: take over scrolling
     e.preventDefault();
 
-    // Move clone with the finger
     touchClone.style.left = `${t.clientX - touchOffsetX}px`;
     touchClone.style.top  = `${t.clientY - touchOffsetY}px`;
 
-    // Edge autoscroll — kick off the loop if near an edge, stop it if not
-    if (edgeScrollSpeed(t.clientY) !== 0) startAutoScroll();
-    else stopAutoScroll();
+    // Edge autoscroll
+    edgeScrollSpeed(t.clientY) !== 0 ? startAutoScroll() : stopAutoScroll();
 
-    // Find the quadrant under the finger (hide clone so it doesn't block hit-test)
+    // Detect quadrant under finger (briefly hide clone so hit-test sees through it)
     touchClone.style.visibility = "hidden";
-    const el = document.elementFromPoint(t.clientX, t.clientY);
+    const under = document.elementFromPoint(t.clientX, t.clientY);
     touchClone.style.visibility = "";
-    const q = el?.closest(".matrix-quadrant") ?? null;
+    const q = under?.closest(".matrix-quadrant") ?? null;
     if (q !== touchOverQ) {
       touchOverQ?.classList.remove("drag-over");
       touchOverQ = q;
-      touchOverQ?.classList.add("drag-over");
+      q?.classList.add("drag-over");
     }
-  }, { passive: false }); // passive:false so we can call preventDefault
+  }, { passive: false });
 
+  // ── touchend / touchcancel: commit the drop and clean up ─────────────────────
   async function onTouchEnd() {
-    stopAutoScroll(); // always kill the scroll loop first
+    cancelLongPress();
+    stopAutoScroll();
 
     const wasActive = touchActive;
     const q         = touchOverQ;
     const id        = touchDragId;
 
-    // Always clean up, regardless of outcome
-    touchClone?.remove();    touchClone  = null;
-    touchDragEl?.classList.remove("dragging"); touchDragEl = null;
+    touchClone?.remove();                             touchClone  = null;
+    touchDragEl?.classList.remove("dragging");        touchDragEl = null;
     $$(".matrix-quadrant.drag-over").forEach(el => el.classList.remove("drag-over"));
     touchDragId = null; touchActive = false; touchOverQ = null;
 
@@ -1542,7 +1561,6 @@ function startAutoScroll() {
     const task = matrixTasks.find(t => t.id === id);
     if (!task) return;
 
-    // No-op if already in this quadrant
     if (!!task.urgent === flags.urgent && !!task.important === flags.important) return;
 
     const label = q.querySelector(".quadrant-label")?.textContent ?? "quadrant";

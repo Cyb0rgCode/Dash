@@ -1568,8 +1568,21 @@ body.drag-selecting * { cursor: crosshair !important; }
 .matrix-empty { color: var(--muted); font-size: 11px; font-style: italic; padding: 4px 0; font-family: 'JetBrains Mono', monospace; }
 
 /* ── Matrix drag-and-drop ── */
-.matrix-task[draggable="true"] { cursor: grab; user-select: none; }
+.matrix-task[draggable="true"] {
+  cursor: grab;
+  /* Prevent text selection on hold — the most common accidental side-effect */
+  user-select: none;
+  -webkit-user-select: none;
+}
 .matrix-task[draggable="true"]:active { cursor: grabbing; }
+
+/* Long-press "charging" state — subtle accent glow builds while the user holds */
+.matrix-task.press-hold {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18), var(--shadow-sm);
+  transform: scale(1.015);
+  transition: border-color 0.1s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
 
 .matrix-task.dragging {
   opacity: 0.3;
