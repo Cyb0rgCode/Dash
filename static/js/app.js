@@ -1490,17 +1490,86 @@ let matrixTasks = [];
 
 // Quadrant → urgent/important flags
 const MATRIX_FLAGS = {
-  'matrix-q1': { urgent: true,  important: true  },  // Do First
-  'matrix-q2': { urgent: false, important: true  },  // Schedule
-  'matrix-q3': { urgent: true,  important: false },  // Delegate
-  'matrix-q4': { urgent: false, important: false },  // Eliminate
+  'matrix-q1': { urgent: true,  important: true  },
+  'matrix-q2': { urgent: false, important: true  },
+  'matrix-q3': { urgent: true,  important: false },
+  'matrix-q4': { urgent: false, important: false },
 };
 
-let matrixDragId = null;
+// ── Matrix order persistence (localStorage) ───────────────────────────────────
+
+function getMatrixOrders() {
+  try { return JSON.parse(localStorage.getItem("matrix-order")) || {}; } catch { return {}; }
+}
+function saveMatrixOrders(o) { localStorage.setItem("matrix-order", JSON.stringify(o)); }
+
+function applyQuadrantOrder(listId, tasks) {
+  const order = getMatrixOrders()[listId] || [];
+  if (!order.length) return tasks;
+  return [...tasks].sort((a, b) =>
+    (order.indexOf(a.id) < 0 ? 9999 : order.indexOf(a.id)) -
+    (order.indexOf(b.id) < 0 ? 9999 : order.indexOf(b.id))
+  );
+}
+
+function captureOrder(listEl) {
+  const o = getMatrixOrders();
+  o[listEl.id] = [...listEl.querySelectorAll(".matrix-task[data-id]")]
+                   .map(li => Number(li.dataset.id));
+  saveMatrixOrders(o);
+}
+
+function placeInOrder(listId, taskId, beforeId) {
+  const o = getMatrixOrders();
+  let arr = (o[listId] || []).filter(id => id !== taskId);
+  const idx = beforeId != null ? arr.indexOf(beforeId) : -1;
+  idx >= 0 ? arr.splice(idx, 0, taskId) : arr.push(taskId);
+  o[listId] = arr;
+  saveMatrixOrders(o);
+}
+
+function removeFromOrder(listId, taskId) {
+  const o = getMatrixOrders();
+  if (o[listId]) { o[listId] = o[listId].filter(id => id !== taskId); saveMatrixOrders(o); }
+}
+
+// ── Drop-line helper (shared by desktop + touch) ───────────────────────────────
+
+let matrixDropLine = null;
+
+function getDropLine() {
+  if (!matrixDropLine) {
+    matrixDropLine = document.createElement("li");
+    matrixDropLine.className = "matrix-drop-line";
+    matrixDropLine.setAttribute("aria-hidden", "true");
+  }
+  return matrixDropLine;
+}
+
+function placeDropLine(list, clientY) {
+  const line  = getDropLine();
+  const items = [...list.querySelectorAll(".matrix-task:not(.dragging)")];
+  let placed  = false;
+  for (const item of items) {
+    const r = item.getBoundingClientRect();
+    if (clientY < r.top + r.height / 2) { list.insertBefore(line, item); placed = true; break; }
+  }
+  if (!placed) list.appendChild(line);
+}
+
+function removeDropLine() { matrixDropLine?.remove(); }
+
+// id of the item that will follow the drop line (null = end of list)
+function getDropBeforeId() {
+  if (!matrixDropLine) return null;
+  const next = matrixDropLine.nextElementSibling;
+  return next?.dataset?.id ? Number(next.dataset.id) : null;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────────
 
 async function loadMatrix() {
   matrixTasks = await api("/api/tasks");
-  // Show ALL tasks — completed ones stay visible as "sacrificed" (struck through)
   renderMatrixQuadrant("matrix-q1", matrixTasks.filter(t =>  t.urgent &&  t.important));
   renderMatrixQuadrant("matrix-q2", matrixTasks.filter(t => !t.urgent &&  t.important));
   renderMatrixQuadrant("matrix-q3", matrixTasks.filter(t =>  t.urgent && !t.important));
@@ -1508,12 +1577,10 @@ async function loadMatrix() {
 }
 
 function renderMatrixQuadrant(listId, tasks) {
-  const list = $(`#${listId}`);
-  if (!tasks.length) {
-    list.innerHTML = '<li class="matrix-empty">No tasks</li>';
-    return;
-  }
-  list.innerHTML = tasks.map(t => `
+  const list   = $(`#${listId}`);
+  const sorted = applyQuadrantOrder(listId, tasks);
+  if (!sorted.length) { list.innerHTML = '<li class="matrix-empty">No tasks</li>'; return; }
+  list.innerHTML = sorted.map(t => `
     <li class="matrix-task${t.completed ? " done" : ""}" data-id="${t.id}" draggable="${t.completed ? "false" : "true"}">
       <button class="matrix-check${t.completed ? " done" : ""}" data-action="toggle"
               title="${t.completed ? "Mark incomplete" : "Mark complete"}"
@@ -1524,11 +1591,13 @@ function renderMatrixQuadrant(listId, tasks) {
   `).join("");
 }
 
+// ── Toggle-complete click ──────────────────────────────────────────────────────
+
 $("#tab-matrix").addEventListener("click", async e => {
   const btn = e.target.closest("[data-action='toggle']");
   if (!btn) return;
-  const li  = btn.closest(".matrix-task");
-  const id  = Number(li.dataset.id);
+  const li   = btn.closest(".matrix-task");
+  const id   = Number(li.dataset.id);
   const task = matrixTasks.find(t => t.id === id);
   if (!task) return;
   const nowDone = !task.completed;
@@ -1537,19 +1606,23 @@ $("#tab-matrix").addEventListener("click", async e => {
   loadMatrix();
 });
 
-// ── Matrix drag-and-drop ───────────────────────────────────────────────────────
+// ── Desktop drag-and-drop ──────────────────────────────────────────────────────
+
+let matrixDragId       = null;
+let matrixDragSourceId = null;
 
 $("#tab-matrix").addEventListener("dragstart", e => {
   const li = e.target.closest(".matrix-task[data-id]");
   if (!li) { e.preventDefault(); return; }
-  matrixDragId = Number(li.dataset.id);
+  matrixDragId       = Number(li.dataset.id);
+  matrixDragSourceId = li.closest(".matrix-task-list")?.id ?? null;
   e.dataTransfer.effectAllowed = "move";
-  // Defer so the drag ghost captures the un-dimmed style
   requestAnimationFrame(() => li.classList.add("dragging"));
 });
 
 $("#tab-matrix").addEventListener("dragend", () => {
-  matrixDragId = null;
+  matrixDragId = null; matrixDragSourceId = null;
+  removeDropLine();
   $$(".matrix-task.dragging").forEach(el => el.classList.remove("dragging"));
   $$(".matrix-quadrant.drag-over").forEach(el => el.classList.remove("drag-over"));
 });
@@ -1564,14 +1637,15 @@ $("#tab-matrix").addEventListener("dragover", e => {
     $$(".matrix-quadrant.drag-over").forEach(el => el.classList.remove("drag-over"));
     q.classList.add("drag-over");
   }
+  const list = q.querySelector(".matrix-task-list");
+  if (list) placeDropLine(list, e.clientY);
 });
 
 $("#tab-matrix").addEventListener("dragleave", e => {
   const q = e.target.closest(".matrix-quadrant");
-  if (!q) return;
-  // Only clear when the pointer genuinely leaves the quadrant box,
-  // not when it enters a child element inside it.
-  if (!q.contains(e.relatedTarget)) q.classList.remove("drag-over");
+  if (!q || q.contains(e.relatedTarget)) return;
+  q.classList.remove("drag-over");
+  removeDropLine();
 });
 
 $("#tab-matrix").addEventListener("drop", async e => {
@@ -1584,46 +1658,54 @@ $("#tab-matrix").addEventListener("drop", async e => {
   const flags  = listEl && MATRIX_FLAGS[listEl.id];
   if (!flags) return;
 
-  const task = matrixTasks.find(t => t.id === matrixDragId);
+  const task     = matrixTasks.find(t => t.id === matrixDragId);
   if (!task) return;
 
-  // Skip API call if dropped on the same quadrant
-  if (!!task.urgent === flags.urgent && !!task.important === flags.important) return;
+  const beforeId = getDropBeforeId();
+  removeDropLine();
 
-  const label = q.querySelector(".quadrant-label")?.textContent ?? "quadrant";
-  await api(`/api/tasks/${matrixDragId}`, "PUT", {
-    urgent:    flags.urgent,
-    important: flags.important,
-  });
-  toast(`Moved to "${label}"`);
-  loadMatrix();
+  const sameQ = !!task.urgent === flags.urgent && !!task.important === flags.important;
+
+  if (sameQ) {
+    // Reorder within column — pure DOM move, no API call
+    const draggedEl = listEl.querySelector(`.matrix-task[data-id="${matrixDragId}"]`);
+    if (draggedEl) {
+      const beforeEl = beforeId != null
+        ? listEl.querySelector(`.matrix-task[data-id="${beforeId}"]`) : null;
+      beforeEl ? listEl.insertBefore(draggedEl, beforeEl) : listEl.appendChild(draggedEl);
+    }
+    captureOrder(listEl);
+  } else {
+    // Cross-column move: persist new position then re-render
+    if (matrixDragSourceId) removeFromOrder(matrixDragSourceId, matrixDragId);
+    placeInOrder(listEl.id, matrixDragId, beforeId);
+    const label = q.querySelector(".quadrant-label")?.textContent ?? "quadrant";
+    await api(`/api/tasks/${matrixDragId}`, "PUT", { urgent: flags.urgent, important: flags.important });
+    toast(`Moved to "${label}"`);
+    loadMatrix();
+  }
 });
 
-// ── Matrix touch drag-and-drop (Safari / iOS) ─────────────────────────────────
-// Uses a long-press (hold ~420 ms) to enter drag mode so that:
-//   • a short tap  → mark complete (unchanged)
-//   • a scroll     → normal page scroll (drag never activates)
-//   • a held press → drag mode: floating clone follows the finger,
-//                    edge autoscroll kicks in near viewport edges,
-//                    releasing over a quadrant commits the move.
+// ── Touch drag-and-drop (mobile / Safari) ─────────────────────────────────────
 
-let touchDragId   = null;   // task id being dragged
-let touchDragEl   = null;   // original <li> (dimmed while dragging)
-let touchClone    = null;   // fixed-position visual clone
-let touchOffsetX  = 0;      // finger offset inside the clone
-let touchOffsetY  = 0;
-let touchOverQ    = null;   // quadrant currently under the finger
-let touchActive   = false;  // true once long-press has fired and drag is live
-let touchStartX   = 0;
-let touchStartY   = 0;
-let touchLastY    = 0;      // updated every touchmove; read by autoscroll loop
-let longPressTimer = null;  // setTimeout handle
-let autoScrollRAF  = null;  // requestAnimationFrame handle
+let touchDragId       = null;
+let touchDragEl       = null;
+let touchDragSourceId = null;
+let touchClone        = null;
+let touchOffsetX      = 0;
+let touchOffsetY      = 0;
+let touchOverQ        = null;
+let touchActive       = false;
+let touchStartX       = 0;
+let touchStartY       = 0;
+let touchLastY        = 0;
+let longPressTimer    = null;
+let autoScrollRAF     = null;
 
-const LONG_PRESS_MS    = 420; // ms hold before drag activates
-const SCROLL_CANCEL_PX = 10;  // px movement that cancels long-press (user is scrolling)
-const SCROLL_EDGE_SIZE = 80;  // px from viewport edge that triggers autoscroll
-const SCROLL_MAX_SPEED = 14;  // px/frame at the very edge
+const LONG_PRESS_MS    = 420;
+const SCROLL_CANCEL_PX = 10;
+const SCROLL_EDGE_SIZE = 80;
+const SCROLL_MAX_SPEED = 14;
 
 function edgeScrollSpeed(clientY) {
   const vh = window.innerHeight;
@@ -1656,36 +1738,29 @@ function cancelLongPress() {
 (function wireMatrixTouch() {
   const tab = $("#tab-matrix");
 
-  // ── touchstart: record the task and start the long-press countdown ───────────
   tab.addEventListener("touchstart", e => {
     const li = e.target.closest(".matrix-task[data-id]");
     if (!li || e.target.closest(".matrix-check")) return;
-
-    const t      = e.touches[0];
-    touchDragEl  = li;
-    touchDragId  = Number(li.dataset.id);
-    touchActive  = false;
-    touchStartX  = t.clientX;
-    touchStartY  = t.clientY;
-    touchLastY   = t.clientY;
-    const r      = li.getBoundingClientRect();
-    touchOffsetX = t.clientX - r.left;
-    touchOffsetY = t.clientY - r.top;
-
-    // Visual "charging" hint — a subtle glow builds while the user holds
+    const t         = e.touches[0];
+    touchDragEl     = li;
+    touchDragId     = Number(li.dataset.id);
+    touchDragSourceId = li.closest(".matrix-task-list")?.id ?? null;
+    touchActive     = false;
+    touchStartX     = t.clientX;
+    touchStartY     = t.clientY;
+    touchLastY      = t.clientY;
+    const r         = li.getBoundingClientRect();
+    touchOffsetX    = t.clientX - r.left;
+    touchOffsetY    = t.clientY - r.top;
     li.classList.add("press-hold");
 
     longPressTimer = setTimeout(() => {
       longPressTimer = null;
       touchActive = true;
       li.classList.remove("press-hold");
-
-      // Light haptic on devices that support it (Android; silently ignored on iOS)
       try { navigator.vibrate?.(25); } catch (_) {}
-
-      // Spawn the floating clone at the task's current screen position
       const rect = li.getBoundingClientRect();
-      touchClone  = li.cloneNode(true);
+      touchClone = li.cloneNode(true);
       touchClone.classList.add("matrix-drag-clone");
       Object.assign(touchClone.style, {
         position: "fixed", left: `${rect.left}px`, top: `${rect.top}px`,
@@ -1696,46 +1771,41 @@ function cancelLongPress() {
     }, LONG_PRESS_MS);
   }, { passive: true });
 
-  // ── touchmove: cancel long-press on scroll; drive clone + autoscroll once live
   tab.addEventListener("touchmove", e => {
     if (!touchDragEl) return;
     const t = e.touches[0];
     touchLastY = t.clientY;
 
     if (!touchActive) {
-      // If the finger moves before the timer fires the user is scrolling — abort
-      const dx = Math.abs(t.clientX - touchStartX);
-      const dy = Math.abs(t.clientY - touchStartY);
-      if (dx > SCROLL_CANCEL_PX || dy > SCROLL_CANCEL_PX) {
-        cancelLongPress();
-        touchDragEl = null;
-        touchDragId = null;
+      if (Math.abs(t.clientX - touchStartX) > SCROLL_CANCEL_PX ||
+          Math.abs(t.clientY - touchStartY) > SCROLL_CANCEL_PX) {
+        cancelLongPress(); touchDragEl = null; touchDragId = null;
       }
-      return; // don't preventDefault — let the page scroll freely
+      return;
     }
 
-    // Drag is live: take over scrolling
     e.preventDefault();
-
     touchClone.style.left = `${t.clientX - touchOffsetX}px`;
     touchClone.style.top  = `${t.clientY - touchOffsetY}px`;
-
-    // Edge autoscroll
     edgeScrollSpeed(t.clientY) !== 0 ? startAutoScroll() : stopAutoScroll();
 
-    // Detect quadrant under finger (briefly hide clone so hit-test sees through it)
     touchClone.style.visibility = "hidden";
     const under = document.elementFromPoint(t.clientX, t.clientY);
     touchClone.style.visibility = "";
     const q = under?.closest(".matrix-quadrant") ?? null;
+
     if (q !== touchOverQ) {
       touchOverQ?.classList.remove("drag-over");
       touchOverQ = q;
       q?.classList.add("drag-over");
     }
+
+    // Show insertion line within the list
+    const list = q?.querySelector(".matrix-task-list");
+    if (list) placeDropLine(list, t.clientY);
+    else removeDropLine();
   }, { passive: false });
 
-  // ── touchend / touchcancel: commit the drop and clean up ─────────────────────
   async function onTouchEnd() {
     cancelLongPress();
     stopAutoScroll();
@@ -1743,11 +1813,14 @@ function cancelLongPress() {
     const wasActive = touchActive;
     const q         = touchOverQ;
     const id        = touchDragId;
+    const sourceId  = touchDragSourceId;
+    const beforeId  = getDropBeforeId();
 
-    touchClone?.remove();                             touchClone  = null;
-    touchDragEl?.classList.remove("dragging");        touchDragEl = null;
+    removeDropLine();
+    touchClone?.remove();                                        touchClone  = null;
+    touchDragEl?.classList.remove("dragging", "press-hold");    touchDragEl = null;
     $$(".matrix-quadrant.drag-over").forEach(el => el.classList.remove("drag-over"));
-    touchDragId = null; touchActive = false; touchOverQ = null;
+    touchDragId = null; touchActive = false; touchOverQ = null; touchDragSourceId = null;
 
     if (!wasActive || !q || id == null) return;
 
@@ -1758,12 +1831,24 @@ function cancelLongPress() {
     const task = matrixTasks.find(t => t.id === id);
     if (!task) return;
 
-    if (!!task.urgent === flags.urgent && !!task.important === flags.important) return;
+    const sameQ = !!task.urgent === flags.urgent && !!task.important === flags.important;
 
-    const label = q.querySelector(".quadrant-label")?.textContent ?? "quadrant";
-    await api(`/api/tasks/${id}`, "PUT", { urgent: flags.urgent, important: flags.important });
-    toast(`Moved to "${label}"`);
-    loadMatrix();
+    if (sameQ) {
+      const draggedEl = listEl.querySelector(`.matrix-task[data-id="${id}"]`);
+      if (draggedEl) {
+        const beforeEl = beforeId != null
+          ? listEl.querySelector(`.matrix-task[data-id="${beforeId}"]`) : null;
+        beforeEl ? listEl.insertBefore(draggedEl, beforeEl) : listEl.appendChild(draggedEl);
+      }
+      captureOrder(listEl);
+    } else {
+      if (sourceId) removeFromOrder(sourceId, id);
+      placeInOrder(listEl.id, id, beforeId);
+      const label = q.querySelector(".quadrant-label")?.textContent ?? "quadrant";
+      await api(`/api/tasks/${id}`, "PUT", { urgent: flags.urgent, important: flags.important });
+      toast(`Moved to "${label}"`);
+      loadMatrix();
+    }
   }
 
   tab.addEventListener("touchend",    onTouchEnd);

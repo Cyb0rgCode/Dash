@@ -1763,6 +1763,17 @@ body.drag-selecting * { cursor: crosshair !important; }
 .matrix-empty { color: var(--muted); font-size: 11px; font-style: italic; padding: 4px 0; font-family: 'JetBrains Mono', monospace; }
 
 /* ── Matrix drag-and-drop ── */
+.matrix-drop-line {
+  list-style: none;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  margin: 1px 0;
+  opacity: 0.85;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
 .matrix-task[draggable="true"] {
   cursor: grab;
   /* Prevent text selection on hold — the most common accidental side-effect */
