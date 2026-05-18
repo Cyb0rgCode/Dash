@@ -1147,17 +1147,45 @@ h2 {
 }
 .habit-log-btn:hover { opacity: 1; }
 
-/* Inline time-logging form that slides under the habit row */
+/* Inline time-logging picker */
 .habit-time-form {
+  width: 100%;
+  padding: 8px 0 4px 36px;
+}
+.habit-time-presets,
+.habit-custom-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  padding: 8px 0 2px 36px;
-  width: 100%;
+}
+.habit-preset-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s,
+              transform 0.4s var(--spring);
+  white-space: nowrap;
+}
+.habit-preset-btn:hover {
+  background: var(--accent-dim);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  color: var(--accent);
+}
+.habit-preset-btn:active { transform: scale(0.94); transition-duration: 0.08s; }
+.habit-preset-custom {
+  color: var(--muted);
+  border-style: dashed;
 }
 .habit-time-input {
-  width: 80px;
-  padding: 5px 8px;
+  width: 72px;
+  padding: 4px 8px;
   border-radius: 8px;
   border: 1px solid var(--border-soft);
   background: var(--bg-2);
@@ -1170,7 +1198,6 @@ h2 {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
 }
-/* habit-log-submit removed — time input now commits on Enter/blur */
 
 @media (max-width: 900px) {
   .stat-cards { grid-template-columns: repeat(2, 1fr); }

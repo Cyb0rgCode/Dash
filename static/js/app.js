@@ -1302,22 +1302,29 @@ $("#habit-list").addEventListener("click", async e => {
   }
 
   if (action === "log-time") {
-    // Close any open time input elsewhere
+    // Close any open picker elsewhere
     $$("#habit-list .habit-time-form").forEach(f => f.remove());
-    // Build tiny popover right on the button
-    const triggerBtn = e.target.closest("[data-action='log-time']");
+
+    const PRESETS = [5, 10, 15, 30, 45, 60];
     const form = document.createElement("div");
     form.className = "habit-time-form";
     form.innerHTML = `
-      <input type="number" class="habit-time-input" placeholder="min" min="1" max="480" inputmode="numeric">
-      <button class="btn-icon" data-action="cancel-time" title="Cancel">✕</button>
+      <div class="habit-time-presets">
+        ${PRESETS.map(m => `
+          <button class="habit-preset-btn" data-minutes="${m}">${fmtTime(m)}</button>
+        `).join("")}
+        <button class="habit-preset-btn habit-preset-custom" data-action="show-custom">Custom</button>
+        <button class="btn-icon" data-action="cancel-time" title="Cancel">✕</button>
+      </div>
+      <div class="habit-custom-row" hidden>
+        <input type="number" class="habit-time-input" placeholder="min" min="1" max="480" inputmode="numeric">
+        <button class="habit-preset-btn" data-action="commit-custom">Log</button>
+        <button class="btn-icon" data-action="cancel-time" title="Cancel">✕</button>
+      </div>
     `;
     li.appendChild(form);
-    const inp = form.querySelector(".habit-time-input");
-    inp.focus();
 
-    const commit = async () => {
-      const minutes = parseInt(inp.value, 10);
+    const logMinutes = async (minutes) => {
       form.remove();
       if (!minutes || minutes < 1) return;
       await api(`/api/habits/${id}/log`, "POST", { minutes });
@@ -1325,11 +1332,25 @@ $("#habit-list").addEventListener("click", async e => {
       loadHabits();
     };
 
-    inp.addEventListener("keydown", ev => {
-      if (ev.key === "Enter")  { ev.preventDefault(); commit(); }
-      if (ev.key === "Escape") form.remove();
+    // Preset chips
+    form.querySelectorAll(".habit-preset-btn[data-minutes]").forEach(btn => {
+      btn.addEventListener("click", () => logMinutes(Number(btn.dataset.minutes)));
     });
-    inp.addEventListener("blur", () => setTimeout(commit, 120));
+
+    // Show custom input
+    form.querySelector("[data-action='show-custom']").addEventListener("click", () => {
+      form.querySelector(".habit-time-presets").hidden = true;
+      const row = form.querySelector(".habit-custom-row");
+      row.hidden = false;
+      const inp = row.querySelector(".habit-time-input");
+      inp.focus();
+      inp.addEventListener("keydown", ev => {
+        if (ev.key === "Enter")  { ev.preventDefault(); logMinutes(parseInt(inp.value, 10)); }
+        if (ev.key === "Escape") form.remove();
+      });
+      row.querySelector("[data-action='commit-custom']").addEventListener("click",
+        () => logMinutes(parseInt(inp.value, 10)));
+    });
   }
 
   if (action === "cancel-time") {
