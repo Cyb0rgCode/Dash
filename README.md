@@ -1,12 +1,12 @@
-# Husky Design System
+# ICE Design System
 
-The design system for **Husky** — a personal productivity dashboard for tracking
+The design system for **ICE** — a personal productivity dashboard for tracking
 tasks, time, habits, and goals. Dark, vibrant, and quietly opinionated:
 violet→mint gradients, Syne display type, JetBrains Mono for everything that
 counts or measures, and iOS-style springy micro-interactions throughout.
 
-> The product is named **Husky** in the UI (page title, app title, logo).
-> The source repo is named **Dash**. Treat "Husky" as the live brand.
+> The product is named **ICE** in the UI (page title, app title, logo).
+> The source repo is named **Dash**. Treat "ICE" as the live brand.
 
 ## Sources used
 
@@ -17,7 +17,7 @@ counts or measures, and iOS-style springy micro-interactions throughout.
   that codebase.
 - **Local codebase:** `Dash/` mount — read while creating this system.
 
-## What Husky is
+## What ICE is
 
 A single-surface web app (with strong mobile responsive design). Five top-level
 views, navigated via a left sidebar (desktop) or a floating "liquid glass"
@@ -40,10 +40,10 @@ Backend: Flask + SQLite. Frontend: vanilla JS + Chart.js. No framework.
 | `README.md` | This file. |
 | `SKILL.md` | Agent-skill entrypoint. |
 | `colors_and_type.css` | All design tokens — colors, type, spacing, radii, shadows, motion. |
-| `fonts/` | Webfont reference (Husky uses Google Fonts via CDN — no local files). |
+| `fonts/` | Webfont reference (ICE uses Google Fonts via CDN — no local files). |
 | `assets/` | Logo SVG, app-icon mark, social/illustrative placeholders. |
 | `preview/` | Design-system preview cards (rendered in the Design System tab). |
-| `ui_kits/web/` | UI kit for the Husky web app — JSX components + interactive index. |
+| `ui_kits/web/` | UI kit for the ICE web app — JSX components + interactive index. |
 
 ### What's in `preview/`
 
@@ -62,12 +62,12 @@ re-drawn as inline SVG so no Chart.js runtime is needed.
 
 ## Content fundamentals
 
-Husky's copy is **terse, warm, and quietly clever**. It's a single-user app
+ICE's copy is **terse, warm, and quietly clever**. It's a single-user app
 talking to one person — yourself. The voice is implied second-person without
 ever saying "you", and avoids commanding verbs in favor of soft observations.
 
 **Casing.** Sentence case everywhere. Title Case is reserved for proper nouns
-and the brand (`Husky`). Two exceptions: small mono labels are `UPPERCASE`
+and the brand (`ICE`). Two exceptions: small mono labels are `UPPERCASE`
 (letter-spaced `0.08em` — see `.hk-label`), and quadrant titles in the Matrix
 use Title Case (`Do First`, `Schedule`, `Delegate`, `Eliminate`).
 
@@ -130,7 +130,7 @@ for moments of emphasis — never as a section background.
   on display sizes.
 - **JetBrains Mono** (400/600/700) — every number, badge, tag, label,
   timestamp, chart axis, page subtitle, sidebar date. With `0.04em`–`0.12em`
-  tracking and frequent UPPERCASE. This is the secret to Husky looking like
+  tracking and frequent UPPERCASE. This is the secret to ICE looking like
   software and not a marketing site.
 
 **Spacing.** A loose 4px grid. Cards pad `20px` (down to `16px` on mobile).
@@ -204,7 +204,7 @@ and the breathing glow drop to `0.001ms`.
 
 ## Iconography
 
-Husky's icons are **all hand-rolled inline SVGs**, sitting directly in
+ICE's icons are **all hand-rolled inline SVGs**, sitting directly in
 markup. There is no icon font, no sprite, no external icon library. Every
 icon shares a tight style:
 
