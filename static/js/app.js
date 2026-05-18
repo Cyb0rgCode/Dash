@@ -1923,6 +1923,14 @@ function setAuthMode(mode) {
   });
   const submitLabel = $(".auth-submit-label");
   if (submitLabel) submitLabel.textContent = authMode === "signup" ? "Create account" : "Continue";
+  // Show "show users" button only on signup tab
+  const extras = $("#auth-signup-extras");
+  if (extras) extras.hidden = authMode !== "signup";
+  // Reset users list when switching tabs
+  const ul = $("#auth-users-list");
+  if (ul) { ul.hidden = true; ul.innerHTML = ""; }
+  const sub = $("#show-users-btn");
+  if (sub) sub.textContent = "Show all users";
   clearAuthError();
 }
 
@@ -2003,6 +2011,32 @@ function wireAuthUI() {
   // Logout
   const logout = $("#logout-btn");
   if (logout) logout.addEventListener("click", handleLogout);
+  // Show-users button (signup pane only)
+  const showUsersBtn  = $("#show-users-btn");
+  const usersListEl   = $("#auth-users-list");
+  const signupExtras  = $("#auth-signup-extras");
+  if (showUsersBtn) {
+    showUsersBtn.addEventListener("click", async () => {
+      const pwd = prompt("Enter password to view users:");
+      if (pwd === null) return;
+      if (pwd !== "claude") { alert("Wrong password."); return; }
+      // Toggle list visibility
+      if (!usersListEl.hidden) { usersListEl.hidden = true; showUsersBtn.textContent = "Show all users"; return; }
+      showUsersBtn.disabled = true;
+      try {
+        const res  = await fetch("/api/auth/users");
+        const data = await res.json();
+        usersListEl.innerHTML = data.length
+          ? data.map(u => `<li><span class="auth-user-name">${escHtml(u.username)}</span><span class="auth-user-date">${u.created_at}</span></li>`).join("")
+          : "<li class='auth-users-empty'>No users yet</li>";
+        usersListEl.hidden = false;
+        showUsersBtn.textContent = "Hide users";
+      } finally {
+        showUsersBtn.disabled = false;
+      }
+    });
+  }
+
   // Delete account
   const del = $("#delete-account-btn");
   if (del) del.addEventListener("click", async () => {

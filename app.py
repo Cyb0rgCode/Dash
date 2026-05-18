@@ -158,6 +158,16 @@ def auth_reset():
     return jsonify({"ok": True})
 
 
+@app.route("/api/auth/users", methods=["GET"])
+def auth_users():
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT username, created_at FROM users ORDER BY created_at ASC"
+    ).fetchall()
+    conn.close()
+    return jsonify([{"username": r["username"], "created_at": r["created_at"]} for r in rows])
+
+
 # ── Index ─────────────────────────────────────────────────────────────────────
 
 @app.route("/")

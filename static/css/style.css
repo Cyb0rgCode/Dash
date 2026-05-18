@@ -1997,6 +1997,66 @@ body.drag-selecting * { cursor: crosshair !important; }
   background: var(--red-dim);
 }
 .auth-delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Show-users button (signup pane) ── */
+.auth-signup-only { margin-top: 10px; }
+
+.auth-users-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border-soft);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  padding: 7px 12px;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.auth-users-btn:hover { color: var(--accent); background: var(--accent-dim); border-color: rgba(var(--accent-rgb), 0.3); }
+.auth-users-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.auth-users-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.auth-users-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-soft);
+}
+.auth-user-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.auth-user-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+.auth-users-empty {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  text-align: center;
+  padding: 6px;
+}
+
 body.auth-visible { overflow: hidden; }
 body.auth-visible .sidebar,
 body.auth-visible .content,
