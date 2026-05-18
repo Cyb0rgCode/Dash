@@ -618,6 +618,16 @@ h2 {
 }
 .chart-card h2 { margin-top: 0; margin-bottom: 14px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--muted); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em; font-weight: 600; }
 .chart-card canvas { max-height: 220px; }
+.chart-empty-state {
+  margin: 0;
+  padding: 48px 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+}
 
 .input-row {
   display: flex;

@@ -381,18 +381,41 @@ function renderDailyChart(data) {
       },
       scales: {
         x: { ticks: { color: tc.muted, font: { size: 11, family: "JetBrains Mono" } }, grid: { display: false } },
-        y: { ticks: { color: tc.muted, font: { size: 11, family: "JetBrains Mono" } }, grid: { color: tc.gridLine }, beginAtZero: true, border: { display: false } },
+        y: {
+          ticks: {
+            color: tc.muted,
+            font: { size: 11, family: "JetBrains Mono" },
+            callback: val => val === 0 ? "0m" : fmtTime(val),
+          },
+          grid: { color: tc.gridLine },
+          beginAtZero: true,
+          suggestedMax: 60,
+          border: { display: false },
+        },
       },
     },
   });
 }
 
 function renderPriorityChart(data) {
-  const ctx = $("#chart-priority").getContext("2d");
+  const canvas = $("#chart-priority");
+  const emptyId = "chart-priority-empty";
+  // Remove any previous empty-state so it doesn't pile up on re-renders.
+  canvas.parentElement.querySelector(`#${emptyId}`)?.remove();
+
   if (!data.length) {
     if (priorityChart) { priorityChart.destroy(); priorityChart = null; }
+    canvas.style.display = "none";
+    const msg = document.createElement("p");
+    msg.id = emptyId;
+    msg.className = "chart-empty-state";
+    msg.textContent = "No time logged yet — use the timer on a task to log time.";
+    canvas.parentElement.appendChild(msg);
     return;
   }
+
+  canvas.style.display = "";
+  const ctx = canvas.getContext("2d");
   const tc = themeChartColors();
   const colorMap = { high: tc.red, medium: tc.yellow, low: tc.green };
   const colors = data.map(d => colorMap[d.category] || tc.accent);
