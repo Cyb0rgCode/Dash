@@ -1941,11 +1941,11 @@ html, body {
   overflow: hidden;
 }
 
-/* Chart.js bakes inline width/height onto the canvas. Cap it so a slow
-   resize-observer tick can't briefly oversize the parent. */
+/* Prevent the canvas from briefly overflowing its card during a slow
+   resize-observer tick. Do NOT set height: auto — Chart.js needs its
+   inline height to control the aspect ratio. */
 .chart-card canvas {
   max-width: 100% !important;
-  height: auto !important;
 }
 
 /* Task / habit / goal rows: keep long titles inside the card. */
