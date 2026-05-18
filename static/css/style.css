@@ -360,12 +360,16 @@ nav { display: flex; flex-direction: column; gap: 2px; position: relative; }
   border-top: 1px solid var(--border-soft);
 }
 
-/* ── Sidebar collapse: hamburger hint shown when collapsed ── */
-body.sidebar-collapsed .logo::after {
-  content: "≡";
-  font-size: 18px;
+/* ── Sidebar collapse: cube icon shown when collapsed ── */
+.logo-cube {
+  display: none;
+  align-items: center;
+  justify-content: center;
   color: var(--muted);
-  line-height: 1;
+  flex-shrink: 0;
+}
+body.sidebar-collapsed .logo-cube {
+  display: flex;
 }
 
 /* ── Collapsed state ── */
