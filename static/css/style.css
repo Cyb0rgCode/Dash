@@ -1227,17 +1227,17 @@ h2 {
     top: auto;
     left: 12px;
     right: 12px;
-    bottom: 0;
+    bottom: calc(6px + env(safe-area-inset-bottom));
     flex-direction: row;
-    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    padding: 6px;
     border: 1px solid var(--sidebar-border);
-    border-bottom: none;
-    border-radius: 26px 26px 0 0;
+    border-radius: 26px;
     background: var(--sidebar-bg);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     box-shadow:
-      0 -4px 24px rgba(20,20,40,0.10),
+      0 16px 36px rgba(20,20,40,0.18),
+      0 4px 14px rgba(20,20,40,0.10),
       inset 0 1px 0 rgba(255,255,255,0.5);
   }
   .logo, .sidebar-foot { display: none; }
