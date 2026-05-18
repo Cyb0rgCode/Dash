@@ -1,6 +1,6 @@
 {
-  "name": "ICE",
-  "short_name": "ICE",
+  "name": "Hypercube",
+  "short_name": "Hypercube",
   "description": "Personal productivity dashboard — tasks, habits, goals.",
   "start_url": "/",
   "display": "standalone",
