@@ -178,6 +178,7 @@ body {
 .logo {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   padding: 0 8px;
   font-weight: 800;
@@ -355,7 +356,6 @@ nav { display: flex; flex-direction: column; gap: 2px; position: relative; }
 
 /* ── Sidebar collapse toggle ── */
 .sidebar-collapse-btn {
-  margin-left: auto;
   flex-shrink: 0;
   width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center;
@@ -364,7 +364,7 @@ nav { display: flex; flex-direction: column; gap: 2px; position: relative; }
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.3s var(--spring);
+  transition: background 0.15s, color 0.15s;
 }
 .sidebar-collapse-btn:hover { background: var(--accent-dim); color: var(--accent); }
 .sidebar-collapse-btn svg { transition: transform 0.3s var(--spring); }
@@ -392,11 +392,11 @@ body.sidebar-collapsed .nav-btn {
   padding-left: 0;
   padding-right: 0;
 }
-body.sidebar-collapsed .sidebar-foot {
+body.sidebar-collapsed .logo {
   justify-content: center;
 }
-body.sidebar-collapsed .sidebar-collapse-btn {
-  margin-left: 0;
+body.sidebar-collapsed .sidebar-foot {
+  display: none;
 }
 
 /* Smooth transitions */
