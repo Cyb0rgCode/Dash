@@ -13,16 +13,21 @@
 })();
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Sidebar collapse toggle
+  // Sidebar collapse toggle (clicking the logo title)
   const collapseBtn = document.querySelector("#sidebar-collapse-btn");
-  if (collapseBtn) {
-    collapseBtn.addEventListener("click", () => {
-      const collapsed = document.body.classList.toggle("sidebar-collapsed");
-      localStorage.setItem("sidebar-collapsed", collapsed ? "1" : "0");
+  function toggleSidebar() {
+    const collapsed = document.body.classList.toggle("sidebar-collapsed");
+    localStorage.setItem("sidebar-collapsed", collapsed ? "1" : "0");
+    if (collapseBtn) {
       collapseBtn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
       collapseBtn.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
-      // Redraw nav indicator after width change settles
-      setTimeout(() => updateNavIndicator(false), 260);
+    }
+    setTimeout(() => updateNavIndicator(false), 260);
+  }
+  if (collapseBtn) {
+    collapseBtn.addEventListener("click", toggleSidebar);
+    collapseBtn.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSidebar(); }
     });
   }
 

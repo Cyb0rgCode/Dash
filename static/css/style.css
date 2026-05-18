@@ -185,7 +185,13 @@ body {
   color: var(--text);
   letter-spacing: -0.02em;
   font-family: 'Syne', sans-serif;
+  cursor: pointer;
+  border-radius: 9px;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.15s;
 }
+.logo:hover { opacity: 0.75; }
 .logo-text {
   white-space: nowrap;
   font-size: 15px;
@@ -354,20 +360,13 @@ nav { display: flex; flex-direction: column; gap: 2px; position: relative; }
   border-top: 1px solid var(--border-soft);
 }
 
-/* ── Sidebar collapse toggle ── */
-.sidebar-collapse-btn {
-  flex-shrink: 0;
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 8px;
-  border: 1px solid var(--border-soft);
-  background: transparent;
+/* ── Sidebar collapse: hamburger hint shown when collapsed ── */
+body.sidebar-collapsed .logo::after {
+  content: "≡";
+  font-size: 18px;
   color: var(--muted);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  line-height: 1;
 }
-.sidebar-collapse-btn:hover { background: var(--accent-dim); color: var(--accent); }
-.sidebar-collapse-btn svg { transition: transform 0.3s var(--spring); }
 
 /* Collapsed state */
 body.sidebar-collapsed .sidebar {
@@ -383,9 +382,6 @@ body.sidebar-collapsed .nav-label {
   width: 0;
   overflow: hidden;
   pointer-events: none;
-}
-body.sidebar-collapsed .sidebar-collapse-btn svg {
-  transform: rotate(180deg);
 }
 body.sidebar-collapsed .nav-btn {
   justify-content: center;
