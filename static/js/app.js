@@ -31,6 +31,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Auto-expand sidebar when resizing to mobile (≤720px);
+  // restore saved state when going back to desktop.
+  const MOBILE_BP = 720;
+  function syncSidebarToViewport() {
+    if (window.innerWidth <= MOBILE_BP) {
+      document.body.classList.remove("sidebar-collapsed");
+    } else {
+      if (localStorage.getItem("sidebar-collapsed") === "1")
+        document.body.classList.add("sidebar-collapsed");
+      else
+        document.body.classList.remove("sidebar-collapsed");
+    }
+    setTimeout(() => updateNavIndicator(false), 260);
+  }
+  window.addEventListener("resize", syncSidebarToViewport);
+
   const toggle = document.querySelector("#theme-toggle");
 
   function applyTheme(theme) {
