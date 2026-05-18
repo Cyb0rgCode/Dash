@@ -1923,9 +1923,11 @@ function setAuthMode(mode) {
   });
   const submitLabel = $(".auth-submit-label");
   if (submitLabel) submitLabel.textContent = authMode === "signup" ? "Create account" : "Continue";
-  // Show "show users" button only on signup tab
-  const extras = $("#auth-signup-extras");
-  if (extras) extras.hidden = authMode !== "signup";
+  // Show correct extras per tab
+  const loginExtras  = $("#auth-login-extras");
+  const signupExtras = $("#auth-signup-extras");
+  if (loginExtras)  loginExtras.hidden  = authMode !== "login";
+  if (signupExtras) signupExtras.hidden = authMode !== "signup";
   // Reset users list when switching tabs
   const ul = $("#auth-users-list");
   if (ul) { ul.hidden = true; ul.innerHTML = ""; }
