@@ -1134,7 +1134,7 @@ h2 {
     top: auto;
     left: 12px;
     right: 12px;
-    bottom: calc(4px + env(safe-area-inset-bottom));
+    bottom: env(safe-area-inset-bottom);
     flex-direction: row;
     padding: 6px;
     border: 1px solid var(--sidebar-border);
