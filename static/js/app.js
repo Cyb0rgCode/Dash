@@ -1566,6 +1566,70 @@ function getDropBeforeId() {
   return next?.dataset?.id ? Number(next.dataset.id) : null;
 }
 
+// ── Matrix timer ──────────────────────────────────────────────────────────────
+
+let matrixTimerTaskId   = null;
+let matrixTimerStart    = null;   // Date.now() when last resumed
+let matrixTimerPausedMs = 0;      // ms accumulated before pause
+let matrixTimerPaused   = false;
+let matrixTimerIv       = null;
+
+function matrixTimerElapsedSec() {
+  const ms = matrixTimerPausedMs + (matrixTimerStart ? Date.now() - matrixTimerStart : 0);
+  return Math.floor(ms / 1000);
+}
+function fmtTimerSec(s) {
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60), r = s % 60;
+  return r ? `${m}m ${r}s` : `${m}m`;
+}
+function updateMatrixTimerDisplay() {
+  if (!matrixTimerTaskId) return;
+  const span = document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"] .matrix-timer`);
+  if (span) span.textContent = (matrixTimerPaused ? "⏸ " : "⏱ ") + fmtTimerSec(matrixTimerElapsedSec());
+}
+function startMatrixTimer(id) {
+  if (matrixTimerIv) clearInterval(matrixTimerIv);
+  matrixTimerTaskId   = id;
+  matrixTimerStart    = Date.now();
+  matrixTimerPausedMs = 0;
+  matrixTimerPaused   = false;
+  const li = document.querySelector(`.matrix-task[data-id="${id}"]`);
+  if (li) { li.classList.add("timing"); li.setAttribute("draggable", "false"); }
+  updateMatrixTimerDisplay();
+  matrixTimerIv = setInterval(updateMatrixTimerDisplay, 1000);
+}
+function pauseMatrixTimer() {
+  if (!matrixTimerStart || matrixTimerPaused) return;
+  matrixTimerPausedMs += Date.now() - matrixTimerStart;
+  matrixTimerStart = null;
+  matrixTimerPaused = true;
+  const li = document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"]`);
+  if (li) li.classList.add("paused");
+  updateMatrixTimerDisplay();
+}
+function resumeMatrixTimer() {
+  if (!matrixTimerPaused) return;
+  matrixTimerStart = Date.now();
+  matrixTimerPaused = false;
+  const li = document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"]`);
+  if (li) li.classList.remove("paused");
+  updateMatrixTimerDisplay();
+}
+function cancelMatrixTimer() {
+  if (matrixTimerIv) { clearInterval(matrixTimerIv); matrixTimerIv = null; }
+  const li = matrixTimerTaskId
+    ? document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"]`) : null;
+  if (li) { li.classList.remove("timing"); li.setAttribute("draggable", "true"); const s = li.querySelector(".matrix-timer"); if (s) s.textContent = ""; }
+  matrixTimerTaskId = null; matrixTimerStart = null; matrixTimerPausedMs = 0; matrixTimerPaused = false;
+}
+function restoreMatrixTimerUI() {
+  if (!matrixTimerTaskId) return;
+  const li = document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"]`);
+  if (li) { li.classList.add("timing"); li.setAttribute("draggable", "false"); }
+  updateMatrixTimerDisplay();
+}
+
 // ── Render ─────────────────────────────────────────────────────────────────────
 
 async function loadMatrix() {
@@ -1574,6 +1638,7 @@ async function loadMatrix() {
   renderMatrixQuadrant("matrix-q2", matrixTasks.filter(t => !t.urgent &&  t.important));
   renderMatrixQuadrant("matrix-q3", matrixTasks.filter(t =>  t.urgent && !t.important));
   renderMatrixQuadrant("matrix-q4", matrixTasks.filter(t => !t.urgent && !t.important));
+  restoreMatrixTimerUI();
 }
 
 function renderMatrixQuadrant(listId, tasks) {
@@ -1585,25 +1650,106 @@ function renderMatrixQuadrant(listId, tasks) {
       <button class="matrix-check${t.completed ? " done" : ""}" data-action="toggle"
               title="${t.completed ? "Mark incomplete" : "Mark complete"}"
               aria-label="${t.completed ? "Mark incomplete" : "Mark complete"}"></button>
-      <span>${escHtml(t.title)}</span>
+      <span class="matrix-task-title">${escHtml(t.title)}</span>
+      <span class="matrix-timer"></span>
       ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
     </li>
   `).join("");
 }
 
-// ── Toggle-complete click ──────────────────────────────────────────────────────
+// ── Click / timer / double-click ──────────────────────────────────────────────
 
-$("#tab-matrix").addEventListener("click", async e => {
-  const btn = e.target.closest("[data-action='toggle']");
-  if (!btn) return;
-  const li   = btn.closest(".matrix-task");
+let matrixClickDelay   = null;
+let matrixPauseHoldTimer = null;
+
+// Double-click: instant sacrifice, no timer
+$("#tab-matrix").addEventListener("dblclick", e => {
+  if (e.target.closest("[data-action='toggle']")) return;
+  const li = e.target.closest(".matrix-task[data-id]");
+  if (!li) return;
+  clearTimeout(matrixClickDelay); matrixClickDelay = null;
   const id   = Number(li.dataset.id);
   const task = matrixTasks.find(t => t.id === id);
-  if (!task) return;
-  const nowDone = !task.completed;
-  await api(`/api/tasks/${id}`, "PUT", { completed: nowDone });
-  toast(nowDone ? "Task sacrificed ✓" : "Task reopened");
-  loadMatrix();
+  if (!task || task.completed) return;
+  if (matrixTimerTaskId === id) cancelMatrixTimer();
+  (async () => {
+    await api(`/api/tasks/${id}`, "PUT", { completed: true });
+    toast("Task sacrificed ✓");
+    loadMatrix();
+  })();
+});
+
+// Single click: check-button toggle OR timer start/complete
+$("#tab-matrix").addEventListener("click", e => {
+  // Check button: immediate toggle (bypasses timer delay)
+  if (e.target.closest("[data-action='toggle']")) {
+    const li   = e.target.closest(".matrix-task");
+    const id   = Number(li?.dataset.id);
+    const task = matrixTasks.find(t => t.id === id);
+    if (!task) return;
+    const nowDone = !task.completed;
+    if (nowDone && matrixTimerTaskId === id) cancelMatrixTimer();
+    (async () => {
+      await api(`/api/tasks/${id}`, "PUT", { completed: nowDone });
+      toast(nowDone ? "Task sacrificed ✓" : "Task reopened");
+      loadMatrix();
+    })();
+    return;
+  }
+
+  const li = e.target.closest(".matrix-task[data-id]");
+  if (!li) return;
+  if (e.detail >= 2) return; // dblclick handles it
+
+  clearTimeout(matrixClickDelay);
+  matrixClickDelay = setTimeout(async () => {
+    matrixClickDelay = null;
+    const id   = Number(li.dataset.id);
+    const task = matrixTasks.find(t => t.id === id);
+    if (!task) return;
+
+    if (task.completed) {
+      await api(`/api/tasks/${id}`, "PUT", { completed: false });
+      toast("Task reopened"); loadMatrix(); return;
+    }
+
+    if (matrixTimerTaskId === id) {
+      // 2nd click on timed task → sacrifice + log
+      const elapsed = matrixTimerElapsedSec();
+      cancelMatrixTimer();
+      await api(`/api/tasks/${id}`, "PUT", { completed: true });
+      if (elapsed >= 30) {
+        const mins = Math.max(1, Math.round(elapsed / 60));
+        await api(`/api/tasks/${id}/log`, "POST", { minutes: mins });
+        toast(`Task sacrificed ✓ — ${mins}m logged`);
+      } else {
+        toast("Task sacrificed ✓");
+      }
+      loadMatrix();
+    } else {
+      // 1st click → start timer
+      if (matrixTimerTaskId !== null) cancelMatrixTimer();
+      startMatrixTimer(id);
+    }
+  }, 220); // wait to let dblclick cancel this
+});
+
+// Desktop hold: pause/resume ONLY when timer is running on that task
+$("#tab-matrix").addEventListener("mousedown", e => {
+  if (e.button !== 0) return;
+  if (e.target.closest("[data-action='toggle']")) return;
+  const li = e.target.closest(".matrix-task[data-id]");
+  if (!li) return;
+  const id = Number(li.dataset.id);
+  if (matrixTimerTaskId !== id) return; // let drag handle non-timed tasks
+  matrixPauseHoldTimer = setTimeout(() => {
+    matrixPauseHoldTimer = null;
+    clearTimeout(matrixClickDelay); matrixClickDelay = null; // cancel pending click
+    matrixTimerPaused ? resumeMatrixTimer() : pauseMatrixTimer();
+  }, 400);
+});
+window.addEventListener("mouseup", () => {
+  if (matrixPauseHoldTimer) { clearTimeout(matrixPauseHoldTimer); matrixPauseHoldTimer = null; }
 });
 
 // ── Desktop drag-and-drop ──────────────────────────────────────────────────────
@@ -1741,9 +1887,24 @@ function cancelLongPress() {
   tab.addEventListener("touchstart", e => {
     const li = e.target.closest(".matrix-task[data-id]");
     if (!li || e.target.closest(".matrix-check")) return;
+    const id = Number(li.dataset.id);
+
+    // ── Timer-running task: long press = pause/resume, NOT drag ──
+    if (id === matrixTimerTaskId) {
+      li.classList.add("press-hold");
+      longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        li.classList.remove("press-hold");
+        try { navigator.vibrate?.(15); } catch (_) {}
+        matrixTimerPaused ? resumeMatrixTimer() : pauseMatrixTimer();
+      }, LONG_PRESS_MS);
+      return; // skip drag setup entirely
+    }
+
+    // ── Normal task: long press = drag ──
     const t         = e.touches[0];
     touchDragEl     = li;
-    touchDragId     = Number(li.dataset.id);
+    touchDragId     = id;
     touchDragSourceId = li.closest(".matrix-task-list")?.id ?? null;
     touchActive     = false;
     touchStartX     = t.clientX;

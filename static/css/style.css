@@ -1075,7 +1075,7 @@ h2 {
 /* Title flexes and shrinks; date stays whole and falls to a new line if
    it can't fit alongside. Prevents the date from sliding past the right
    edge of the quadrant at narrow widths. */
-.matrix-task > span:not(.item-meta) {
+.matrix-task-title {
   flex: 1 1 0;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -1087,6 +1087,39 @@ h2 {
   margin-left: auto;
   max-width: 100%;
 }
+
+/* ── Matrix timer ── */
+.matrix-timer {
+  flex: 0 0 auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.matrix-task.timing .matrix-timer { opacity: 1; }
+
+/* ── Timing state ── */
+.matrix-task.timing {
+  border-color: rgba(var(--accent-rgb), 0.55);
+  background: rgba(var(--accent-rgb), 0.06);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.18), 0 4px 16px rgba(var(--accent-rgb), 0.1);
+  animation: matrixPulse 2s ease-in-out infinite;
+}
+@keyframes matrixPulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.18), 0 4px 16px rgba(var(--accent-rgb), 0.10); }
+  50%       { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.35), 0 4px 20px rgba(var(--accent-rgb), 0.22); }
+}
+/* Paused: amber tint, no pulse */
+.matrix-task.timing.paused {
+  border-color: rgba(var(--yellow-rgb, 247,199,106), 0.55);
+  background: rgba(var(--yellow-rgb, 247,199,106), 0.06);
+  animation: none;
+}
+.matrix-task.timing.paused .matrix-timer { color: var(--yellow, #f7c76a); }
 
 .matrix-check,
 .habit-check {
