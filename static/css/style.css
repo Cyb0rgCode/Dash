@@ -1104,22 +1104,36 @@ h2 {
 
 /* ── Timing state ── */
 .matrix-task.timing {
-  border-color: rgba(var(--accent-rgb), 0.55);
-  background: rgba(var(--accent-rgb), 0.06);
-  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.18), 0 4px 16px rgba(var(--accent-rgb), 0.1);
+  border-color: rgba(var(--accent-rgb), 0.7);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.13) 0%, rgba(var(--accent-rgb), 0.05) 100%);
+  color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.25), 0 6px 20px rgba(var(--accent-rgb), 0.18);
   animation: matrixPulse 2s ease-in-out infinite;
 }
+.matrix-task.timing .matrix-task-title { color: var(--accent); }
+.matrix-task.timing .matrix-check {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
 @keyframes matrixPulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.18), 0 4px 16px rgba(var(--accent-rgb), 0.10); }
-  50%       { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.35), 0 4px 20px rgba(var(--accent-rgb), 0.22); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.25), 0 4px 16px rgba(var(--accent-rgb), 0.14); }
+  50%       { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.45), 0 6px 24px rgba(var(--accent-rgb), 0.28); }
 }
 /* Paused: amber tint, no pulse */
 .matrix-task.timing.paused {
-  border-color: rgba(var(--yellow-rgb, 247,199,106), 0.55);
-  background: rgba(var(--yellow-rgb, 247,199,106), 0.06);
+  border-color: rgba(247,199,106, 0.7);
+  background: linear-gradient(135deg, rgba(247,199,106, 0.13) 0%, rgba(247,199,106, 0.05) 100%);
+  box-shadow: 0 0 0 1px rgba(247,199,106, 0.25), 0 4px 16px rgba(247,199,106, 0.14);
   animation: none;
 }
-.matrix-task.timing.paused .matrix-timer { color: var(--yellow, #f7c76a); }
+.matrix-task.timing.paused .matrix-task-title { color: var(--yellow, #f7c76a); }
+.matrix-task.timing.paused .matrix-timer      { color: var(--yellow, #f7c76a); }
+.matrix-task.timing.paused .matrix-check {
+  border-color: var(--yellow, #f7c76a);
+  background: rgba(247,199,106, 0.12);
+  box-shadow: 0 0 0 3px rgba(247,199,106, 0.15);
+}
 
 .matrix-check,
 .habit-check {
