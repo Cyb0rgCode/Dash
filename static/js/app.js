@@ -1664,7 +1664,7 @@ let matrixPauseHoldTimer = null;
 
 // Double-click: instant sacrifice, no timer
 $("#tab-matrix").addEventListener("dblclick", e => {
-  if (e.target.closest("[data-action='toggle']")) return;
+  if (e.target.closest(".matrix-check")) return;
   const li = e.target.closest(".matrix-task[data-id]");
   if (!li) return;
   clearTimeout(matrixClickDelay); matrixClickDelay = null;
@@ -1680,23 +1680,26 @@ $("#tab-matrix").addEventListener("dblclick", e => {
 });
 
 // Single click: check-button toggle OR timer start/complete
-$("#tab-matrix").addEventListener("click", e => {
-  // Check button: immediate toggle (bypasses timer delay)
-  if (e.target.closest("[data-action='toggle']")) {
-    const li   = e.target.closest(".matrix-task");
-    const id   = Number(li?.dataset.id);
+$("#tab-matrix").addEventListener("click", async e => {
+  // ── Check button: immediate toggle, bypass timer entirely ──
+  const checkBtn = e.target.closest(".matrix-check");
+  if (checkBtn) {
+    e.stopPropagation();
+    clearTimeout(matrixClickDelay); matrixClickDelay = null;
+    const li = checkBtn.closest("li[data-id]");
+    if (!li) return;
+    const id   = Number(li.dataset.id);
     const task = matrixTasks.find(t => t.id === id);
     if (!task) return;
     const nowDone = !task.completed;
     if (nowDone && matrixTimerTaskId === id) cancelMatrixTimer();
-    (async () => {
-      await api(`/api/tasks/${id}`, "PUT", { completed: nowDone });
-      toast(nowDone ? "Task sacrificed ✓" : "Task reopened");
-      loadMatrix();
-    })();
+    await api(`/api/tasks/${id}`, "PUT", { completed: nowDone });
+    toast(nowDone ? "Task sacrificed ✓" : "Task reopened");
+    loadMatrix();
     return;
   }
 
+  // ── Task row click: timer start / complete ──
   const li = e.target.closest(".matrix-task[data-id]");
   if (!li) return;
   if (e.detail >= 2) return; // dblclick handles it
@@ -1731,13 +1734,13 @@ $("#tab-matrix").addEventListener("click", e => {
       if (matrixTimerTaskId !== null) cancelMatrixTimer();
       startMatrixTimer(id);
     }
-  }, 220); // wait to let dblclick cancel this
+  }, 220);
 });
 
 // Desktop hold: pause/resume ONLY when timer is running on that task
 $("#tab-matrix").addEventListener("mousedown", e => {
   if (e.button !== 0) return;
-  if (e.target.closest("[data-action='toggle']")) return;
+  if (e.target.closest(".matrix-check")) return;
   const li = e.target.closest(".matrix-task[data-id]");
   if (!li) return;
   const id = Number(li.dataset.id);
