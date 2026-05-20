@@ -1566,17 +1566,21 @@ function getDropBeforeId() {
   return next?.dataset?.id ? Number(next.dataset.id) : null;
 }
 
-// ── Matrix timer ──────────────────────────────────────────────────────────────
+// ── Matrix timer (server-persisted) ───────────────────────────────────────────
+// Server is the source of truth. Local state is seeded from the server on every
+// matrix load so the timer survives refresh / navigation / multi-tab usage.
 
-let matrixTimerTaskId   = null;
-let matrixTimerStart    = null;   // Date.now() when last resumed
-let matrixTimerPausedMs = 0;      // ms accumulated before pause
-let matrixTimerPaused   = false;
-let matrixTimerIv       = null;
+let matrixTimerTaskId  = null;
+let matrixTimerPaused  = false;
+let matrixTimerIv      = null;
+
+// Local tick state (seeded from server, drifts by at most 1 s between syncs)
+let _mtLocalStart      = null;  // performance.now() when current segment started
+let _mtServerAccSec    = 0;     // accumulated seconds from server at last sync
 
 function matrixTimerElapsedSec() {
-  const ms = matrixTimerPausedMs + (matrixTimerStart ? Date.now() - matrixTimerStart : 0);
-  return Math.floor(ms / 1000);
+  const local = _mtLocalStart != null ? Math.floor((performance.now() - _mtLocalStart) / 1000) : 0;
+  return _mtServerAccSec + local;
 }
 function fmtTimerSec(s) {
   if (s < 60) return `${s}s`;
@@ -1588,46 +1592,90 @@ function updateMatrixTimerDisplay() {
   const span = document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"] .matrix-timer`);
   if (span) span.textContent = (matrixTimerPaused ? "⏸ " : "⏱ ") + fmtTimerSec(matrixTimerElapsedSec());
 }
-function startMatrixTimer(id) {
-  if (matrixTimerIv) clearInterval(matrixTimerIv);
-  matrixTimerTaskId   = id;
-  matrixTimerStart    = Date.now();
-  matrixTimerPausedMs = 0;
-  matrixTimerPaused   = false;
+
+function _mtApplyUI(id, paused) {
   const li = document.querySelector(`.matrix-task[data-id="${id}"]`);
-  if (li) { li.classList.add("timing"); li.setAttribute("draggable", "false"); }
+  if (!li) return;
+  li.classList.add("timing");
+  li.setAttribute("draggable", "false");
+  if (paused) li.classList.add("paused"); else li.classList.remove("paused");
+}
+
+async function startMatrixTimer(id) {
+  if (matrixTimerIv) { clearInterval(matrixTimerIv); matrixTimerIv = null; }
+  const res = await api("/api/timer/start", "POST", { task_id: id });
+  matrixTimerTaskId = id;
+  matrixTimerPaused = false;
+  _mtServerAccSec   = 0;
+  _mtLocalStart     = performance.now();
+  _mtApplyUI(id, false);
   updateMatrixTimerDisplay();
   matrixTimerIv = setInterval(updateMatrixTimerDisplay, 1000);
 }
-function pauseMatrixTimer() {
-  if (!matrixTimerStart || matrixTimerPaused) return;
-  matrixTimerPausedMs += Date.now() - matrixTimerStart;
-  matrixTimerStart = null;
+
+async function pauseMatrixTimer() {
+  if (matrixTimerPaused || !matrixTimerTaskId) return;
+  const res = await api("/api/timer/pause", "POST", {});
+  if (!res.ok) return;
+  _mtServerAccSec = res.accumulated_sec;
+  _mtLocalStart   = null;
   matrixTimerPaused = true;
   const li = document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"]`);
   if (li) li.classList.add("paused");
   updateMatrixTimerDisplay();
 }
-function resumeMatrixTimer() {
-  if (!matrixTimerPaused) return;
-  matrixTimerStart = Date.now();
+
+async function resumeMatrixTimer() {
+  if (!matrixTimerPaused || !matrixTimerTaskId) return;
+  const res = await api("/api/timer/resume", "POST", {});
+  if (!res.ok) return;
+  _mtLocalStart   = performance.now();
   matrixTimerPaused = false;
   const li = document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"]`);
   if (li) li.classList.remove("paused");
   updateMatrixTimerDisplay();
 }
-function cancelMatrixTimer() {
+
+function _mtClearLocal() {
   if (matrixTimerIv) { clearInterval(matrixTimerIv); matrixTimerIv = null; }
   const li = matrixTimerTaskId
     ? document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"]`) : null;
-  if (li) { li.classList.remove("timing"); li.setAttribute("draggable", "true"); const s = li.querySelector(".matrix-timer"); if (s) s.textContent = ""; }
-  matrixTimerTaskId = null; matrixTimerStart = null; matrixTimerPausedMs = 0; matrixTimerPaused = false;
+  if (li) {
+    li.classList.remove("timing", "paused");
+    li.setAttribute("draggable", "true");
+    const s = li.querySelector(".matrix-timer");
+    if (s) s.textContent = "";
+  }
+  matrixTimerTaskId = null;
+  matrixTimerPaused = false;
+  _mtLocalStart     = null;
+  _mtServerAccSec   = 0;
 }
-function restoreMatrixTimerUI() {
-  if (!matrixTimerTaskId) return;
-  const li = document.querySelector(`.matrix-task[data-id="${matrixTimerTaskId}"]`);
-  if (li) { li.classList.add("timing"); li.setAttribute("draggable", "false"); }
+
+function cancelMatrixTimer() {
+  // Fire-and-forget delete on server; clear UI immediately
+  if (matrixTimerTaskId) api("/api/timer", "DELETE", null);
+  _mtClearLocal();
+}
+
+async function restoreMatrixTimerUI() {
+  // Called after every loadMatrix() — seeds local state from server
+  const data = await api("/api/timer");
+  if (!data.active) {
+    // No server timer; kill any stale local state
+    if (matrixTimerIv) { clearInterval(matrixTimerIv); matrixTimerIv = null; }
+    matrixTimerTaskId = null; _mtLocalStart = null; _mtServerAccSec = 0; matrixTimerPaused = false;
+    return;
+  }
+  // Server has an active timer — seed local state
+  if (matrixTimerIv) { clearInterval(matrixTimerIv); matrixTimerIv = null; }
+  matrixTimerTaskId = data.task_id;
+  matrixTimerPaused = data.paused;
+  _mtServerAccSec   = data.elapsed_sec;
+  _mtLocalStart     = data.paused ? null : performance.now();
+  _mtApplyUI(data.task_id, data.paused);
   updateMatrixTimerDisplay();
+  if (!data.paused) matrixTimerIv = setInterval(updateMatrixTimerDisplay, 1000);
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────────
@@ -1638,7 +1686,7 @@ async function loadMatrix() {
   renderMatrixQuadrant("matrix-q2", matrixTasks.filter(t => !t.urgent &&  t.important));
   renderMatrixQuadrant("matrix-q3", matrixTasks.filter(t =>  t.urgent && !t.important));
   renderMatrixQuadrant("matrix-q4", matrixTasks.filter(t => !t.urgent && !t.important));
-  restoreMatrixTimerUI();
+  await restoreMatrixTimerUI();
 }
 
 function renderMatrixQuadrant(listId, tasks) {
@@ -1716,7 +1764,7 @@ $("#tab-matrix").addEventListener("click", async e => {
 
   // No timer yet → start immediately
   if (matrixTimerTaskId !== null) cancelMatrixTimer();
-  startMatrixTimer(id);
+  await startMatrixTimer(id);
 });
 
 // Desktop hold on task row: pause/resume when timer is running on that task

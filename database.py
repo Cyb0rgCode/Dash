@@ -75,6 +75,14 @@ def init_db():
             logged_at TEXT NOT NULL DEFAULT (date('now')),
             FOREIGN KEY (task_id) REFERENCES tasks(id)
         );
+
+        CREATE TABLE IF NOT EXISTS matrix_timers (
+            user_id         INTEGER PRIMARY KEY,
+            task_id         INTEGER NOT NULL,
+            started_at      REAL    NOT NULL,
+            accumulated_sec INTEGER NOT NULL DEFAULT 0,
+            paused          INTEGER NOT NULL DEFAULT 0
+        );
     """)
     conn.commit()
 
