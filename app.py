@@ -54,6 +54,9 @@ app.config.update(
 
 init_db()
 
+# ── Hermes Agent integration ──────────────────────────────────────────────────
+HERMES_URL   = os.environ.get("HERMES_URL",   "http://localhost:8642")
+HERMES_KEY   = os.environ.get("HERMES_KEY",   "hypercube-secret")
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -67,6 +70,13 @@ def current_user_id():
 def require_user(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
+        # Allow Hermes Agent via X-Hermes-Key header (local requests only)
+        if HERMES_KEY and request.headers.get("X-Hermes-Key") == HERMES_KEY:
+            conn = get_db()
+            row  = conn.execute("SELECT id FROM users LIMIT 1").fetchone()
+            conn.close()
+            uid  = row["id"] if row else 1
+            return view(uid, *args, **kwargs)
         uid = current_user_id()
         if uid is None:
             return jsonify({"error": "unauthorized"}), 401
@@ -167,6 +177,46 @@ def auth_users():
     ).fetchall()
     conn.close()
     return jsonify([{"username": r["username"], "created_at": r["created_at"]} for r in rows])
+
+
+# ── Hermes Agent chat proxy ───────────────────────────────────────────────────
+
+@app.route("/api/agent/chat", methods=["POST"])
+@require_user
+def agent_chat(uid):
+    """Proxy chat messages to the local Hermes Agent API server."""
+    import urllib.request, urllib.error, json as _json
+    payload = request.get_json(force=True)
+    req_data = _json.dumps(payload).encode()
+    req_obj  = urllib.request.Request(
+        f"{HERMES_URL}/v1/chat/completions",
+        data=req_data,
+        headers={
+            "Content-Type":  "application/json",
+            "Authorization": f"Bearer {HERMES_KEY}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req_obj, timeout=120) as resp:
+            return app.response_class(
+                response=resp.read(),
+                status=resp.status,
+                mimetype="application/json",
+            )
+    except urllib.error.URLError as exc:
+        return jsonify({"error": f"Hermes unreachable: {exc.reason}"}), 503
+
+
+@app.route("/api/agent/status", methods=["GET"])
+def agent_status():
+    """Check whether Hermes is running."""
+    import urllib.request, urllib.error
+    try:
+        urllib.request.urlopen(f"{HERMES_URL}/health", timeout=3)
+        return jsonify({"online": True})
+    except Exception:
+        return jsonify({"online": False})
 
 
 # ── Index ─────────────────────────────────────────────────────────────────────

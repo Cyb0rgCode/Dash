@@ -219,6 +219,7 @@ $$(".nav-btn").forEach(btn => {
       else if (activeTab === "tasks")  { loadTasks(); updateFilterIndicator(false); }
       else if (activeTab === "habits") { Promise.all([loadHabits(), loadGoals()]); updateHabitsTabsIndicator(false); }
       else if (activeTab === "matrix") loadMatrix();
+      else if (activeTab === "agent")  initAgentTab();
     });
   });
 });
@@ -2107,6 +2108,103 @@ function escHtml(s) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+// ── Agent chat ────────────────────────────────────────────────────────────────
+
+const agentHistory = [];   // [{role, content}]
+
+async function initAgentTab() {
+  const label = $("#agent-status-label");
+  const msgs  = $("#agent-messages");
+  try {
+    const s = await fetch("/api/agent/status").then(r => r.json());
+    if (s.online) {
+      if (label) label.textContent = "Hermes is online";
+      if (msgs && !msgs.children.length) appendAgentMsg("agent", "Hey — I have access to your tasks, habits, and goals. What do you need?");
+    } else {
+      if (label) label.textContent = "Hermes offline";
+      if (msgs) msgs.innerHTML = `
+        <div class="agent-offline-banner">
+          <strong>Hermes isn't running</strong>
+          Start it with:<br>
+          <code style="font-family:JetBrains Mono,monospace;font-size:12px;color:var(--cyan)">hermes start --api-server</code>
+        </div>`;
+    }
+  } catch {
+    if (label) label.textContent = "Hermes offline";
+  }
+}
+
+function appendAgentMsg(role, content) {
+  const msgs = $("#agent-messages");
+  if (!msgs) return;
+  const div = document.createElement("div");
+  div.className = `agent-msg ${role}`;
+  if (role === "agent") {
+    div.innerHTML = `<div class="agent-msg-meta">Hermes</div>${escHtml(content)}`;
+  } else {
+    div.textContent = content;
+  }
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function sendAgentMessage() {
+  const input = $("#agent-input");
+  const btn   = $("#agent-send");
+  const text  = input.value.trim();
+  if (!text) return;
+
+  input.value = "";
+  input.style.height = "auto";
+  btn.disabled = true;
+
+  appendAgentMsg("user", text);
+  agentHistory.push({ role: "user", content: text });
+
+  // Thinking indicator
+  const thinking = document.createElement("div");
+  thinking.className = "agent-msg thinking";
+  thinking.textContent = "Thinking";
+  $("#agent-messages").appendChild(thinking);
+  $("#agent-messages").scrollTop = $("#agent-messages").scrollHeight;
+
+  try {
+    const res = await api("/api/agent/chat", "POST", {
+      model: "hermes",
+      messages: agentHistory,
+      stream: false,
+    });
+    thinking.remove();
+    const reply = res?.choices?.[0]?.message?.content ?? "No response.";
+    agentHistory.push({ role: "assistant", content: reply });
+    appendAgentMsg("agent", reply);
+  } catch (err) {
+    thinking.remove();
+    appendAgentMsg("agent", "Couldn't reach Hermes. Make sure it's running with --api-server.");
+  }
+
+  btn.disabled = false;
+  input.focus();
+}
+
+// Wire up send button + Enter (Shift+Enter for newline)
+document.addEventListener("DOMContentLoaded", () => {
+  const btn   = $("#agent-send");
+  const input = $("#agent-input");
+  if (btn)   btn.addEventListener("click", sendAgentMessage);
+  if (input) {
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAgentMessage(); }
+    });
+    // Auto-grow textarea
+    input.addEventListener("input", () => {
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, 120) + "px";
+    });
+  }
+});
 
 // ── Auth (username-only, session cookie) ───────────────────────────────────────
 
