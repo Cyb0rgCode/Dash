@@ -58,6 +58,18 @@ init_db()
 HERMES_URL   = os.environ.get("HERMES_URL",   "http://localhost:8642")
 HERMES_KEY   = os.environ.get("HERMES_KEY",   "hypercube-secret")
 
+
+def _get_hermes_config(uid):
+    """Return (url, key) for a user: DB override > env > hardcoded default."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT hermes_url, hermes_key FROM agent_config WHERE user_id = ?", (uid,)
+    ).fetchone()
+    conn.close()
+    url = (row["hermes_url"] if row and row["hermes_url"] else None) or HERMES_URL
+    key = (row["hermes_key"] if row and row["hermes_key"] else None) or HERMES_KEY
+    return url, key
+
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
 USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{2,32}$")
@@ -181,19 +193,55 @@ def auth_users():
 
 # ── Hermes Agent chat proxy ───────────────────────────────────────────────────
 
+@app.route("/api/agent/config", methods=["GET"])
+@require_user
+def agent_config_get(uid):
+    """Return the user's saved Hermes config (key presence only, not value)."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT hermes_url, hermes_key FROM agent_config WHERE user_id = ?", (uid,)
+    ).fetchone()
+    conn.close()
+    return jsonify({
+        "hermes_url": row["hermes_url"] if row and row["hermes_url"] else "",
+        "has_key":    bool(row and row["hermes_key"]),
+    })
+
+
+@app.route("/api/agent/config", methods=["POST"])
+@require_user
+def agent_config_post(uid):
+    """Save or clear the user's Hermes URL and key. Empty values revert to env."""
+    body = request.get_json(force=True) or {}
+    url  = (body.get("hermes_url") or "").strip()
+    key  = (body.get("hermes_key") or "").strip()
+    if url and not url.startswith(("http://", "https://")):
+        return jsonify({"error": "URL must start with http:// or https://"}), 400
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO agent_config (user_id, hermes_url, hermes_key) VALUES (?, ?, ?) "
+        "ON CONFLICT(user_id) DO UPDATE SET hermes_url=excluded.hermes_url, hermes_key=excluded.hermes_key",
+        (uid, url or None, key or None),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
 @app.route("/api/agent/chat", methods=["POST"])
 @require_user
 def agent_chat(uid):
-    """Proxy chat messages to the local Hermes Agent API server."""
+    """Proxy chat messages to the Hermes Agent API server."""
     import urllib.request, urllib.error, json as _json
-    payload = request.get_json(force=True)
+    hermes_url, hermes_key = _get_hermes_config(uid)
+    payload  = request.get_json(force=True)
     req_data = _json.dumps(payload).encode()
     req_obj  = urllib.request.Request(
-        f"{HERMES_URL}/v1/chat/completions",
+        f"{hermes_url}/v1/chat/completions",
         data=req_data,
         headers={
             "Content-Type":  "application/json",
-            "Authorization": f"Bearer {HERMES_KEY}",
+            "Authorization": f"Bearer {hermes_key}",
         },
         method="POST",
     )
@@ -209,14 +257,16 @@ def agent_chat(uid):
 
 
 @app.route("/api/agent/status", methods=["GET"])
-def agent_status():
-    """Check whether Hermes is running."""
+@require_user
+def agent_status(uid):
+    """Check whether the user's configured Hermes instance is reachable."""
     import urllib.request, urllib.error
+    hermes_url, _ = _get_hermes_config(uid)
     try:
-        urllib.request.urlopen(f"{HERMES_URL}/health", timeout=3)
-        return jsonify({"online": True})
+        urllib.request.urlopen(f"{hermes_url}/health", timeout=3)
+        return jsonify({"online": True, "url": hermes_url})
     except Exception:
-        return jsonify({"online": False})
+        return jsonify({"online": False, "url": hermes_url})
 
 
 # ── Index ─────────────────────────────────────────────────────────────────────

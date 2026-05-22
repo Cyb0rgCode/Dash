@@ -366,6 +366,20 @@
         <h1 class="page-title">Agent</h1>
         <p class="page-subtitle" id="agent-status-label">Checking Hermes…</p>
       </header>
+      <div class="agent-config-form" id="agent-config-form">
+        <div class="agent-config-row">
+          <div class="agent-config-field">
+            <label class="agent-cfg-label" for="agent-cfg-url">Endpoint</label>
+            <input type="url" id="agent-cfg-url" class="agent-cfg-input" placeholder="https://your-worker.workers.dev" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="agent-config-field agent-config-field--key">
+            <label class="agent-cfg-label" for="agent-cfg-key">Key</label>
+            <input type="password" id="agent-cfg-key" class="agent-cfg-input" placeholder="API key" autocomplete="new-password">
+          </div>
+          <button id="agent-cfg-save" class="agent-cfg-save-btn">Save</button>
+        </div>
+        <p class="agent-cfg-hint" id="agent-cfg-hint"></p>
+      </div>
       <div class="agent-chat-wrap">
         <div id="agent-messages" class="agent-messages" aria-live="polite"></div>
         <div class="agent-input-row">
