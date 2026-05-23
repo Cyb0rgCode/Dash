@@ -2241,8 +2241,10 @@ async function sendAgentAttachment(file, kind = "file") {
 document.addEventListener("DOMContentLoaded", () => {
   const btn   = $("#agent-send");
   const input = $("#agent-input");
-  const attachBtn = $("#agent-attach");
-  const attachInput = $("#agent-attach-input");
+  const imgBtn = $("#agent-attach-image");
+  const fileBtn = $("#agent-attach-file");
+  const imgInput = $("#agent-image-input");
+  const fileInput = $("#agent-file-input");
 
   if (btn)   btn.addEventListener("click", sendAgentMessage);
   if (input) {
@@ -2256,13 +2258,20 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (attachBtn && attachInput) {
-    attachBtn.addEventListener("click", () => attachInput.click());
-    attachInput.addEventListener("change", () => {
-      const file = attachInput.files && attachInput.files[0];
-      attachInput.value = "";
-      const kind = file && file.type && file.type.startsWith("image/") ? "image" : "file";
-      sendAgentAttachment(file, kind);
+  if (imgBtn && imgInput) {
+    imgBtn.addEventListener("click", () => imgInput.click());
+    imgInput.addEventListener("change", () => {
+      const file = imgInput.files && imgInput.files[0];
+      imgInput.value = "";
+      sendAgentAttachment(file, "image");
+    });
+  }
+  if (fileBtn && fileInput) {
+    fileBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      sendAgentAttachment(file, "file");
     });
   }
 });

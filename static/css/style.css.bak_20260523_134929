@@ -1343,7 +1343,6 @@ h2 {
     border-radius: 12px;
     margin: 8px 0 12px;
     box-shadow: 0 12px 24px rgba(20,20,40,0.12);
-    transform: translateY(-6px);
   }
   #tab-agent .agent-messages {
     padding-bottom: 88px;
