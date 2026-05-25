@@ -1778,12 +1778,80 @@ body.drag-selecting * { cursor: crosshair !important; }
   border: 1px solid transparent; color: var(--muted);
   border-radius: 6px; padding: 4px 8px;
   font-size: 11px; font-family: 'JetBrains Mono', monospace;
-  outline: none; transition: border-color 0.15s, background 0.15s, color 0.15s;
+  outline: none; transition: border-color 0.15s, background 0.15s, color 0.15s, opacity 0.15s;
   margin-left: auto;
+  opacity: 0;
+  pointer-events: none;
 }
+#task-list li:hover .log-mins-inline,
+.log-mins-inline:focus { opacity: 1; pointer-events: auto; }
 .log-mins-inline:hover { border-color: var(--border); background: var(--surface2); }
 .log-mins-inline:focus { border-color: var(--accent); background: var(--surface2); color: var(--text); }
 .log-mins-inline::placeholder { color: var(--border); font-size: 11px; }
+
+/* ── Tasks: search + sort row ── */
+.task-tools-row {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 6px;
+}
+.task-search-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.task-search-input:focus { border-color: var(--accent); }
+.task-search-input::placeholder { color: var(--muted); }
+.task-sort-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+.task-sort-select:focus { border-color: var(--accent); }
+
+/* ── Category progress bar + collapse ── */
+.category-progress {
+  display: inline-block;
+  width: 60px;
+  height: 4px;
+  background: var(--border-soft);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.category-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease-out;
+}
+.category-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.category-collapse-btn:hover { color: var(--text); }
+
+/* ── Overdue task styling ── */
+#task-list li.overdue { border-left: 3px solid var(--red); }
+.overdue-meta { color: var(--red) !important; font-weight: 600; }
 
 /* ── Goals ── */
 .item-list li.goal-item { flex-direction: column; align-items: stretch; gap: 10px; }

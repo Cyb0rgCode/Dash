@@ -542,11 +542,30 @@ function renderFocusBanner(tasks) {
 
 let allTasks = [];
 let taskFilter = "all";
+let taskSearch = "";
+let taskSort = "default";
+let collapsedCats = new Set();
 let selectedIds = new Set();
 let suppressNextTaskClick = false;
 
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
+
+function refreshTaskDatalists() {
+  const catSet = new Set();
+  const chSet = new Set();
+  allTasks.forEach(t => {
+    if (t.category) catSet.add(t.category);
+    if (t.chapter)  chSet.add(t.chapter);
+  });
+  const catList = $("#task-categories-list");
+  const chList  = $("#task-chapters-list");
+  if (catList) catList.innerHTML = [...catSet].sort().map(c => `<option value="${escHtml(c)}">`).join("");
+  if (chList)  chList.innerHTML  = [...chSet].sort().map(c => `<option value="${escHtml(c)}">`).join("");
+}
+
 async function loadTasks() {
   allTasks = await api("/api/tasks");
+  refreshTaskDatalists();
   renderTasks();
 }
 
@@ -568,10 +587,15 @@ function renderTasks() {
   if (taskFilter === "pending") tasks = tasks.filter(t => !t.completed);
   if (taskFilter === "done") tasks = tasks.filter(t => t.completed);
 
+  // Search by title (case-insensitive substring match)
+  const q = taskSearch.trim().toLowerCase();
+  if (q) tasks = tasks.filter(t => t.title.toLowerCase().includes(q));
+
   if (!tasks.length) {
-    const hint = taskFilter === "done"    ? "Complete tasks will appear here."
-              : taskFilter === "pending"  ? "All caught up — no pending tasks."
-              :                              "Add a task above or import a JSON list to get started.";
+    const hint = q                          ? "No tasks match your search."
+              : taskFilter === "done"       ? "Complete tasks will appear here."
+              : taskFilter === "pending"    ? "All caught up — no pending tasks."
+              :                                "Add a task above or import a JSON list to get started.";
     list.innerHTML = `<li class="empty-state">
       <div class="empty-state-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -579,12 +603,25 @@ function renderTasks() {
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
         </svg>
       </div>
-      <div class="empty-state-title">${taskFilter === "done" ? "Nothing done yet" : taskFilter === "pending" ? "Inbox zero" : "No tasks yet"}</div>
+      <div class="empty-state-title">${q ? "No matches" : taskFilter === "done" ? "Nothing done yet" : taskFilter === "pending" ? "Inbox zero" : "No tasks yet"}</div>
       <div class="empty-state-hint">${hint}</div>
     </li>`;
     updateBatchBar();
     return;
   }
+
+  const todayStr2 = today();
+  const sortTasks = arr => {
+    const a = arr.slice();
+    if (taskSort === "deadline") {
+      a.sort((x, y) => (x.deadline || "9999-12-31").localeCompare(y.deadline || "9999-12-31"));
+    } else if (taskSort === "priority") {
+      a.sort((x, y) => (PRIORITY_RANK[x.priority] ?? 9) - (PRIORITY_RANK[y.priority] ?? 9));
+    } else if (taskSort === "recent") {
+      a.sort((x, y) => (y.id ?? 0) - (x.id ?? 0));
+    }
+    return a;
+  };
 
   // Group by category
   const groups = {};
@@ -601,11 +638,19 @@ function renderTasks() {
   for (const cat of sortedKeys) {
     const catTasks = groups[cat];
     const allSel = catTasks.every(t => selectedIds.has(t.id));
-    html += `<li class="category-header${allSel ? " all-selected" : ""}" data-category="${escHtml(cat)}">
+    const catDone = catTasks.filter(t => t.completed).length;
+    const catTotal = catTasks.length;
+    const catPct = catTotal ? Math.round((catDone / catTotal) * 100) : 0;
+    const collapsed = collapsedCats.has(cat);
+    html += `<li class="category-header${allSel ? " all-selected" : ""}${collapsed ? " collapsed" : ""}" data-category="${escHtml(cat)}">
+      <button type="button" class="category-collapse-btn" data-action="toggle-category" aria-label="${collapsed ? "Expand" : "Collapse"}">${collapsed ? "▸" : "▾"}</button>
       <span class="category-header-name">${escHtml(cat)}</span>
-      <span class="category-header-count">${catTasks.length} task${catTasks.length === 1 ? "" : "s"}</span>
+      <span class="category-header-count">${catDone}/${catTotal}</span>
+      <span class="category-progress" title="${catPct}% complete"><span class="category-progress-fill" style="width:${catPct}%"></span></span>
       <button type="button" class="category-select-btn" data-action="select-category">${allSel ? "Deselect all" : "Select all"}</button>
     </li>`;
+
+    if (collapsed) continue;
 
     // Sub-group by chapter within the category
     const chGroups = {};
@@ -627,18 +672,19 @@ function renderTasks() {
           <button type="button" class="chapter-select-btn" data-action="select-chapter">${chAllSel ? "Deselect" : "Select"}</button>
         </li>`;
       }
-      chGroups[ch].forEach(t => {
+      sortTasks(chGroups[ch]).forEach(t => {
         const urgCls = t.urgent && t.important ? " li-both"
           : t.important ? " li-important"
           : t.urgent    ? " li-urgent" : "";
-        html += `<li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}${urgCls}" data-id="${t.id}">
+        const isOverdue = t.deadline && !t.completed && t.deadline < todayStr2;
+        html += `<li class="${t.completed ? "done" : ""}${selectedIds.has(t.id) ? " selected" : ""}${urgCls}${isOverdue ? " overdue" : ""}" data-id="${t.id}">
           <button class="habit-check ${t.completed ? "done" : ""}" data-action="toggle" title="Toggle complete" aria-label="${t.completed ? "Mark incomplete" : "Mark complete"}"></button>
           <span class="item-title">${escHtml(t.title)}</span>
           ${t.task_type ? `<span class="tag-type">${escHtml(t.task_type)}</span>` : ""}
           ${t.urgent ? '<span class="tag-urgent">! urgent</span>' : ""}
           ${t.important ? '<span class="tag-important">★ key</span>' : ""}
           <span class="badge badge-${t.priority}">${t.priority}</span>
-          ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
+          ${t.deadline ? `<span class="item-meta${isOverdue ? " overdue-meta" : ""}">${isOverdue ? "⚠ " : ""}${t.deadline}</span>` : ""}
           ${t.estimated_minutes ? `<span class="estimate-badge">~${fmtTime(t.estimated_minutes)}</span>` : ""}
           ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
           <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
@@ -678,15 +724,36 @@ $("#task-form").addEventListener("submit", async e => {
     deadline:  $("#task-deadline").value || null,
     urgent:    getToggle("task-urgent"),
     important: getToggle("task-important"),
+    category:  $("#task-category").value.trim(),
+    chapter:   $("#task-chapter").value.trim(),
   });
   allTasks.unshift(task);
+  refreshTaskDatalists();
   renderTasks();
   toast("Task added");
   $("#task-title").value = "";
   $("#task-deadline").value = "";
+  $("#task-category").value = "";
+  $("#task-chapter").value = "";
   resetToggle("task-urgent");
   resetToggle("task-important");
 });
+
+// Search + sort listeners
+const taskSearchEl = $("#task-search");
+if (taskSearchEl) {
+  taskSearchEl.addEventListener("input", () => {
+    taskSearch = taskSearchEl.value;
+    renderTasks();
+  });
+}
+const taskSortEl = $("#task-sort");
+if (taskSortEl) {
+  taskSortEl.addEventListener("change", () => {
+    taskSort = taskSortEl.value;
+    renderTasks();
+  });
+}
 
 // ── Double-tap any ⏱ logged-time badge to reset it ────────────────────────────
 // Shared by both the Tasks pane (.time-badge) and the Matrix (.matrix-time-logged).
@@ -717,6 +784,16 @@ $("#task-list").addEventListener("click", async e => {
   if (result !== false) return; // chip tapped once — arm state, skip normal handling
 
   const action = e.target.dataset.action || e.target.closest("[data-action]")?.dataset.action;
+
+  if (action === "toggle-category") {
+    const header = e.target.closest(".category-header");
+    const cat = header?.dataset.category;
+    if (!cat) return;
+    if (collapsedCats.has(cat)) collapsedCats.delete(cat);
+    else collapsedCats.add(cat);
+    renderTasks();
+    return;
+  }
 
   if (action === "select-category") {
     const header = e.target.closest(".category-header");

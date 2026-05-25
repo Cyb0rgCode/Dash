@@ -213,6 +213,12 @@
       <form id="task-form" class="input-row">
         <input id="task-title" type="text" placeholder="New task…" required />
         <div class="form-row-2">
+          <input id="task-category" type="text" placeholder="Category (optional)" list="task-categories-list" />
+          <input id="task-chapter" type="text" placeholder="Chapter (optional)" list="task-chapters-list" />
+        </div>
+        <datalist id="task-categories-list"></datalist>
+        <datalist id="task-chapters-list"></datalist>
+        <div class="form-row-2">
           <select id="task-priority">
             <option value="high">High</option>
             <option value="medium" selected>Medium</option>
@@ -254,6 +260,15 @@
         <button type="button" id="batch-done" class="batch-btn">Mark done</button>
         <button type="button" id="batch-delete" class="batch-btn danger">Delete</button>
         <button type="button" id="batch-clear" class="btn-icon" title="Clear selection">✕</button>
+      </div>
+      <div class="task-tools-row">
+        <input id="task-search" type="search" placeholder="Search tasks…" class="task-search-input" />
+        <select id="task-sort" class="task-sort-select" title="Sort tasks">
+          <option value="default">Default order</option>
+          <option value="deadline">Deadline ↑</option>
+          <option value="priority">Priority ↑</option>
+          <option value="recent">Newest first</option>
+        </select>
       </div>
       <div class="filter-row">
         <span class="filter-indicator" aria-hidden="true"></span>
