@@ -180,7 +180,8 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 0 8px 28px;
+  padding: 0 8px;
+  min-height: 64px;
   font-weight: 800;
   color: var(--text);
   letter-spacing: -0.02em;
