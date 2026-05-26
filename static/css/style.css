@@ -852,7 +852,6 @@ h2 {
 .item-list li.li-urgent    { border-left: 3px solid var(--yellow); }
 
 .item-list li.done { opacity: 0.55; }
-.item-list li.done .item-title { text-decoration: line-through; }
 
 .item-list li.empty-state {
   display: flex !important;
