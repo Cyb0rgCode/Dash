@@ -181,7 +181,6 @@ body {
   justify-content: space-between;
   gap: 6px;
   padding: 0 8px;
-  flex: 1;
   font-weight: 800;
   color: var(--text);
   letter-spacing: -0.02em;
@@ -400,7 +399,6 @@ body.sidebar-collapsed .nav-btn {
 }
 /* Logo area matches nav tile exactly when collapsed */
 body.sidebar-collapsed .logo {
-  flex: none;
   width: 40px;
   height: 40px;
   margin: 0 auto;
