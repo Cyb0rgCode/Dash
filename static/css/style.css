@@ -1917,6 +1917,163 @@ body.drag-selecting * { cursor: crosshair !important; }
 /* ── Matrix empty state ── */
 .matrix-empty { color: var(--muted); font-size: 11px; font-style: italic; padding: 4px 0; font-family: 'JetBrains Mono', monospace; }
 
+/* ── Task delegation ── */
+
+/* Delegated-out: task you sent to someone else — amber tint */
+.matrix-task.delegated-out {
+  border-color: rgba(247, 199, 106, 0.45);
+  background: rgba(247, 199, 106, 0.06);
+}
+.matrix-task.delegated-out .matrix-task-title { color: var(--yellow, #f7c76a); opacity: 0.85; }
+
+/* Delegated-in: task someone sent you — cyan tint */
+.matrix-task.delegated-in {
+  border-color: rgba(var(--cyan-rgb), 0.4);
+  background: rgba(var(--cyan-rgb), 0.06);
+}
+.matrix-task.delegated-in .matrix-task-title { color: var(--cyan); opacity: 0.9; }
+
+/* Delegation chip (shared base) */
+.matrix-delegation-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+.matrix-delegation-chip.out {
+  color: var(--yellow, #f7c76a);
+  background: rgba(247, 199, 106, 0.12);
+  border: 1px solid rgba(247, 199, 106, 0.3);
+}
+.matrix-delegation-chip.in {
+  color: var(--cyan);
+  background: rgba(var(--cyan-rgb), 0.1);
+  border: 1px solid rgba(var(--cyan-rgb), 0.28);
+}
+.matrix-delegation-chip button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 1px;
+  font-size: 11px;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.matrix-delegation-chip button:hover { opacity: 1; }
+
+/* Delegate button — hidden, revealed on row hover */
+.matrix-delegate-btn {
+  flex: 0 0 auto;
+  background: none;
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 1px 6px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.matrix-task:hover .matrix-delegate-btn,
+.matrix-task:focus-within .matrix-delegate-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+.matrix-delegate-btn:hover {
+  color: var(--cyan);
+  border-color: rgba(var(--cyan-rgb), 0.4);
+}
+
+/* Delegate popover */
+.delegate-popover {
+  position: fixed;
+  z-index: 9999;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  padding: 12px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.delegate-popover input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-family: 'Syne', sans-serif;
+  color: var(--text);
+  outline: none;
+}
+.delegate-popover input:focus { border-color: var(--cyan); }
+.delegate-popover-btns {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.delegate-send-btn {
+  background: var(--cyan);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Syne', sans-serif;
+}
+.delegate-send-btn:hover { opacity: 0.85; }
+.delegate-cancel-btn {
+  background: none;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--muted);
+  font-family: 'Syne', sans-serif;
+}
+.delegate-cancel-btn:hover { color: var(--text); }
+.delegate-popover-error {
+  font-size: 11px;
+  color: #e05c5c;
+  display: none;
+}
+
+/* Inbox badge on nav button */
+.nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  background: var(--cyan);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  pointer-events: none;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* ── Matrix drag-and-drop ── */
 .matrix-drop-line {
   list-style: none;

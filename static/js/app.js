@@ -1813,23 +1813,119 @@ async function loadMatrix() {
   renderMatrixQuadrant("matrix-q3", matrixTasks.filter(t =>  t.urgent && !t.important));
   renderMatrixQuadrant("matrix-q4", matrixTasks.filter(t => !t.urgent && !t.important));
   await restoreMatrixTimerUI();
+  _updateDelegationBadge();
+}
+
+function _delegationChip(t) {
+  const d = t.delegation_out;
+  const i = t.delegation_in;
+  if (d) {
+    const icon = { pending: '⏳', accepted: '✓', declined: '✕', done: '✅' }[d.status] ?? '';
+    return `<span class="matrix-delegation-chip out" title="Delegated to @${escHtml(d.to_username)}">${icon} @${escHtml(d.to_username)}</span>`;
+  }
+  if (i) {
+    const isPending = i.status === 'pending';
+    return `<span class="matrix-delegation-chip in${isPending ? ' pending' : ''}" data-deleg-id="${i.id}">← @${escHtml(i.from_username)}${isPending
+      ? ` <button class="deleg-accept" title="Accept">✓</button><button class="deleg-decline" title="Decline">✕</button>`
+      : ''}</span>`;
+  }
+  return '';
 }
 
 function renderMatrixQuadrant(listId, tasks) {
   const list   = $(`#${listId}`);
   const sorted = applyQuadrantOrder(listId, tasks);
   if (!sorted.length) { list.innerHTML = '<li class="matrix-empty">No tasks</li>'; return; }
-  list.innerHTML = sorted.map(t => `
-    <li class="matrix-task${t.completed ? " done" : ""}" data-id="${t.id}" draggable="${t.completed ? "false" : "true"}">
-      <button class="matrix-check${t.completed ? " done" : ""}" data-action="toggle"
-              title="${t.completed ? "Mark incomplete" : "Mark complete"}"
-              aria-label="${t.completed ? "Mark incomplete" : "Mark complete"}"></button>
+  list.innerHTML = sorted.map(t => {
+    const hasDelegOut  = !!t.delegation_out;
+    const hasDelegIn   = !!t.delegation_in;
+    const extraClass   = hasDelegOut ? ' delegated-out' : hasDelegIn ? ' delegated-in' : '';
+    const canDelegate  = !t.completed && !hasDelegOut;
+    const draggable    = !t.completed && !matrixTimers.has(t.id);
+    return `
+    <li class="matrix-task${t.completed ? ' done' : ''}${extraClass}" data-id="${t.id}" draggable="${draggable}">
+      <button class="matrix-check${t.completed ? ' done' : ''}" data-action="toggle"
+              title="${t.completed ? 'Mark incomplete' : 'Mark complete'}"
+              aria-label="${t.completed ? 'Mark incomplete' : 'Mark complete'}"></button>
       <span class="matrix-task-title">${escHtml(t.title)}</span>
       <span class="matrix-timer"></span>
-      ${t.time_logged > 0 ? `<span class="matrix-time-logged">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
-      ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ""}
-    </li>
-  `).join("");
+      ${_delegationChip(t)}
+      ${t.time_logged > 0 ? `<span class="matrix-time-logged">⏱ ${fmtTime(t.time_logged)}</span>` : ''}
+      ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ''}
+      ${canDelegate ? `<button class="matrix-delegate-btn" title="Delegate task" aria-label="Delegate">→</button>` : ''}
+    </li>`;
+  }).join("");
+}
+
+// ── Delegation UI ──────────────────────────────────────────────────────────────
+
+let _delegPopover = null;
+
+function _showDelegatePopover(li, taskId) {
+  _hideDelegatePopover();
+  const pop = document.createElement('div');
+  pop.className = 'delegate-popover';
+  pop.innerHTML = `
+    <input class="dp-user" type="text" placeholder="Username" autocomplete="off" spellcheck="false" />
+    <input class="dp-note" type="text" placeholder="Note (optional)" />
+    <div class="delegate-popover-btns">
+      <button class="delegate-cancel-btn">Cancel</button>
+      <button class="delegate-send-btn">Delegate →</button>
+    </div>
+    <div class="delegate-popover-error"></div>`;
+  document.body.appendChild(pop);
+
+  // Position below the row
+  const rect = li.getBoundingClientRect();
+  const popH = 130;
+  const top  = (rect.bottom + window.scrollY + 4);
+  pop.style.top  = top + 'px';
+  pop.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
+
+  _delegPopover = { el: pop, taskId };
+  pop.querySelector('.dp-user').focus();
+
+  const send = async () => {
+    const username = pop.querySelector('.dp-user').value.trim();
+    const note     = pop.querySelector('.dp-note').value.trim();
+    const errEl    = pop.querySelector('.delegate-popover-error');
+    errEl.style.display = 'none';
+    if (!username) { errEl.textContent = 'Enter a username'; errEl.style.display = 'block'; return; }
+    const res = await api(`/api/tasks/${taskId}/delegate`, 'POST', { username, note });
+    if (res.error) { errEl.textContent = res.error; errEl.style.display = 'block'; return; }
+    toast(`Delegated to @${username} ✓`);
+    _hideDelegatePopover();
+    loadMatrix();
+  };
+
+  pop.querySelector('.delegate-send-btn').addEventListener('click', send);
+  pop.querySelector('.delegate-cancel-btn').addEventListener('click', _hideDelegatePopover);
+  pop.querySelector('.dp-user').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+  setTimeout(() => document.addEventListener('click', _delegOutsideClick), 10);
+}
+
+function _delegOutsideClick(e) {
+  if (_delegPopover && !_delegPopover.el.contains(e.target)) _hideDelegatePopover();
+}
+function _hideDelegatePopover() {
+  _delegPopover?.el.remove();
+  _delegPopover = null;
+  document.removeEventListener('click', _delegOutsideClick);
+}
+
+async function _updateDelegationBadge() {
+  const inbox = await api('/api/delegations/inbox');
+  const count = Array.isArray(inbox) ? inbox.length : 0;
+  const btn   = document.querySelector('.nav-btn[data-tab="matrix"]');
+  if (!btn) return;
+  let badge = btn.querySelector('.nav-badge');
+  if (count > 0) {
+    if (!badge) { badge = document.createElement('span'); badge.className = 'nav-badge'; btn.appendChild(badge); }
+    badge.textContent = count;
+  } else {
+    badge?.remove();
+  }
 }
 
 // ── Click / timer / double-click ──────────────────────────────────────────────
@@ -1840,6 +1936,34 @@ let matrixPauseHoldTimer = null;
 $("#tab-matrix").addEventListener("click", async e => {
   const result = await _handleLogBadgeTap(e, ".matrix-time-logged");
   if (result === "reset") loadMatrix();
+});
+
+// Delegate button → open popover
+$("#tab-matrix").addEventListener("click", e => {
+  const btn = e.target.closest(".matrix-delegate-btn");
+  if (!btn) return;
+  e.stopPropagation();
+  const li = btn.closest("li[data-id]");
+  if (li) _showDelegatePopover(li, Number(li.dataset.id));
+});
+
+// Accept / decline incoming delegation chips
+$("#tab-matrix").addEventListener("click", async e => {
+  const accept  = e.target.closest(".deleg-accept");
+  const decline = e.target.closest(".deleg-decline");
+  if (!accept && !decline) return;
+  e.stopPropagation();
+  const chip    = (accept || decline).closest(".matrix-delegation-chip");
+  const delegId = Number(chip?.dataset.delegId);
+  if (!delegId) return;
+  if (accept) {
+    await api(`/api/delegations/${delegId}/accept`, 'POST', {});
+    toast("Delegation accepted ✓");
+  } else {
+    await api(`/api/delegations/${delegId}/decline`, 'POST', {});
+    toast("Delegation declined");
+  }
+  loadMatrix();
 });
 
 // Checkbox: 1st click = start timer, 2nd click = stop + log + sacrifice

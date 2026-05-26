@@ -84,6 +84,20 @@ def init_db():
             paused          INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (user_id, task_id)
         );
+
+        CREATE TABLE IF NOT EXISTS delegations (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            original_task_id INTEGER NOT NULL,
+            copy_task_id     INTEGER,
+            from_user_id     INTEGER NOT NULL,
+            to_user_id       INTEGER NOT NULL,
+            status           TEXT    NOT NULL DEFAULT 'pending',
+            note             TEXT,
+            created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (original_task_id) REFERENCES tasks(id),
+            FOREIGN KEY (from_user_id)     REFERENCES users(id),
+            FOREIGN KEY (to_user_id)       REFERENCES users(id)
+        );
     """)
     conn.commit()
 
@@ -97,6 +111,8 @@ def init_db():
             ("task_type",         "TEXT NOT NULL DEFAULT ''"),
             ("chapter",           "TEXT NOT NULL DEFAULT ''"),
             ("user_id",           "INTEGER"),
+            ("delegation_id",     "INTEGER"),   # set on received copies
+            ("delegated_out",     "INTEGER"),   # set on tasks you delegated away
         ],
         "habits":    [("user_id", "INTEGER")],
         "habit_completions": [

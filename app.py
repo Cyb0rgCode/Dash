@@ -178,6 +178,31 @@ def index():
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 
+def _task_delegation_info(conn, task):
+    """Attach delegation_out / delegation_in dicts to a task dict (mutates in place)."""
+    if task.get("delegated_out"):
+        row = conn.execute(
+            """SELECT d.id, d.status, u.username AS to_username
+                 FROM delegations d JOIN users u ON d.to_user_id = u.id
+                WHERE d.id = ?""",
+            (task["delegated_out"],),
+        ).fetchone()
+        task["delegation_out"] = dict(row) if row else None
+    else:
+        task["delegation_out"] = None
+
+    if task.get("delegation_id"):
+        row = conn.execute(
+            """SELECT d.id, d.status, u.username AS from_username
+                 FROM delegations d JOIN users u ON d.from_user_id = u.id
+                WHERE d.id = ?""",
+            (task["delegation_id"],),
+        ).fetchone()
+        task["delegation_in"] = dict(row) if row else None
+    else:
+        task["delegation_in"] = None
+
+
 @app.route("/api/tasks", methods=["GET"])
 @require_user
 def get_tasks(uid):
@@ -193,6 +218,7 @@ def get_tasks(uid):
             "SELECT COALESCE(SUM(duration_minutes), 0) FROM task_logs WHERE task_id = ?",
             (task["id"],),
         ).fetchone()[0]
+        _task_delegation_info(conn, task)
         tasks.append(task)
     conn.close()
     return jsonify(tasks)
@@ -241,6 +267,155 @@ def reset_task_log(uid, task_id):
     task["time_logged"] = 0
     conn.close()
     return jsonify(task)
+
+
+# ── Task delegation ───────────────────────────────────────────────────────────
+
+@app.route("/api/tasks/<int:task_id>/delegate", methods=["POST"])
+@require_user
+def delegate_task(uid, task_id):
+    data     = request.json or {}
+    username = (data.get("username") or "").strip()
+    note     = (data.get("note")     or "").strip()
+    if not username:
+        return jsonify({"error": "username required"}), 400
+
+    conn = get_db()
+
+    task = conn.execute(
+        "SELECT * FROM tasks WHERE id = ? AND user_id = ?", (task_id, uid)
+    ).fetchone()
+    if not task:
+        conn.close()
+        return jsonify({"error": "task not found"}), 404
+
+    target = conn.execute(
+        "SELECT id FROM users WHERE username = ? COLLATE NOCASE", (username,)
+    ).fetchone()
+    if not target:
+        conn.close()
+        return jsonify({"error": f"user '{username}' not found"}), 404
+
+    to_uid = target["id"]
+    if to_uid == uid:
+        conn.close()
+        return jsonify({"error": "cannot delegate to yourself"}), 400
+
+    # Create a copy of the task in the recipient's account
+    cur = conn.execute(
+        """INSERT INTO tasks
+             (title, priority, deadline, urgent, important,
+              category, estimated_minutes, task_type, chapter, user_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (task["title"], task["priority"], task["deadline"],
+         task["urgent"], task["important"], task["category"],
+         task["estimated_minutes"], task["task_type"], task["chapter"],
+         to_uid),
+    )
+    copy_id = cur.lastrowid
+
+    # Create delegation record
+    dcur = conn.execute(
+        """INSERT INTO delegations
+             (original_task_id, copy_task_id, from_user_id, to_user_id, status, note)
+           VALUES (?, ?, ?, ?, 'pending', ?)""",
+        (task_id, copy_id, uid, to_uid, note or None),
+    )
+    deleg_id = dcur.lastrowid
+
+    # Link copy and original to the delegation
+    conn.execute("UPDATE tasks SET delegation_id = ? WHERE id = ?",  (deleg_id, copy_id))
+    conn.execute("UPDATE tasks SET delegated_out = ? WHERE id = ?",  (deleg_id, task_id))
+    conn.commit()
+
+    row  = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    out  = dict(row)
+    out["time_logged"] = conn.execute(
+        "SELECT COALESCE(SUM(duration_minutes), 0) FROM task_logs WHERE task_id = ?",
+        (task_id,),
+    ).fetchone()[0]
+    _task_delegation_info(conn, out)
+    conn.close()
+    return jsonify(out)
+
+
+@app.route("/api/delegations/inbox", methods=["GET"])
+@require_user
+def delegation_inbox(uid):
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT d.id, d.status, d.note, d.created_at,
+                  u.username AS from_username,
+                  t.title    AS task_title,
+                  d.copy_task_id
+             FROM delegations d
+             JOIN users u ON d.from_user_id = u.id
+             JOIN tasks t ON d.original_task_id = t.id
+            WHERE d.to_user_id = ? AND d.status = 'pending'
+            ORDER BY d.created_at DESC""",
+        (uid,),
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/delegations/outbox", methods=["GET"])
+@require_user
+def delegation_outbox(uid):
+    conn = get_db()
+    rows = conn.execute(
+        """SELECT d.id, d.status, d.note, d.created_at,
+                  u.username AS to_username,
+                  t.title    AS task_title
+             FROM delegations d
+             JOIN users u ON d.to_user_id = u.id
+             JOIN tasks t ON d.original_task_id = t.id
+            WHERE d.from_user_id = ?
+            ORDER BY d.created_at DESC""",
+        (uid,),
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/delegations/<int:deleg_id>/accept", methods=["POST"])
+@require_user
+def accept_delegation(uid, deleg_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM delegations WHERE id = ? AND to_user_id = ?", (deleg_id, uid)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "delegation not found"}), 404
+    conn.execute("UPDATE delegations SET status = 'accepted' WHERE id = ?", (deleg_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/delegations/<int:deleg_id>/decline", methods=["POST"])
+@require_user
+def decline_delegation(uid, deleg_id):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM delegations WHERE id = ? AND to_user_id = ?", (deleg_id, uid)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "delegation not found"}), 404
+    # Delete the copy task and the delegation record
+    if row["copy_task_id"]:
+        conn.execute("DELETE FROM task_logs WHERE task_id = ?", (row["copy_task_id"],))
+        conn.execute("DELETE FROM tasks WHERE id = ?",          (row["copy_task_id"],))
+    # Clear delegated_out on original task
+    conn.execute(
+        "UPDATE tasks SET delegated_out = NULL WHERE delegated_out = ?", (deleg_id,)
+    )
+    conn.execute("UPDATE delegations SET status = 'declined' WHERE id = ?", (deleg_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 # ── Server-side matrix timer ──────────────────────────────────────────────────
@@ -395,6 +570,17 @@ def update_task(uid, task_id):
             "UPDATE tasks SET completed = ?, completed_at = ? WHERE id = ?",
             (int(data["completed"]), completed_at, task_id),
         )
+        # If this is a received delegation copy being completed, mark delegation done
+        if data["completed"]:
+            owner = conn.execute(
+                "SELECT delegation_id FROM tasks WHERE id = ? AND user_id = ?",
+                (task_id, uid),
+            ).fetchone()
+            if owner and owner["delegation_id"]:
+                conn.execute(
+                    "UPDATE delegations SET status = 'done' WHERE id = ?",
+                    (owner["delegation_id"],),
+                )
     if "title" in data:
         conn.execute("UPDATE tasks SET title = ? WHERE id = ?", (data["title"], task_id))
     if "priority" in data:
