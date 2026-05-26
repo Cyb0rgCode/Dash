@@ -459,7 +459,7 @@ body.sidebar-collapsed .sidebar-foot {
 .content {
   margin-left: var(--sidebar-w);
   flex: 1;
-  padding: 36px 40px;
+  padding: 36px 190px 36px 40px;
   min-width: 0;
 }
 
