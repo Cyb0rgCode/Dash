@@ -411,9 +411,15 @@ body.sidebar-collapsed .sidebar-foot {
   display: none;
 }
 
+/* ── Sidebar bottom wrapper: pushes history + date to foot of sidebar ── */
+.sidebar-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ── Sidebar history buttons (Undo / Redo) ── */
 .sidebar-history {
-  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1436,7 +1442,7 @@ h2 {
       0 4px 14px rgba(20,20,40,0.10),
       inset 0 1px 0 rgba(255,255,255,0.5);
   }
-  .logo, .sidebar-foot { display: none; }
+  .logo, .sidebar-foot, .sidebar-bottom { display: none; }
   nav {
     flex-direction: row;
     width: 100%;
