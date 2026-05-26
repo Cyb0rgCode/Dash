@@ -1982,6 +1982,7 @@ function _pushUndo(label, undoFn, redoFn) {
   _undoStack.push({ label, undo: undoFn, redo: redoFn });
   if (_undoStack.length > UNDO_LIMIT) _undoStack.shift();
   _redoStack.length = 0;
+  _updateUndoRedoBtns();
 }
 
 async function _doUndo() {
@@ -1990,6 +1991,7 @@ async function _doUndo() {
   await a.undo();
   _redoStack.push(a);
   toast(`↩ ${a.label}`);
+  _updateUndoRedoBtns();
 }
 
 async function _doRedo() {
@@ -1998,6 +2000,7 @@ async function _doRedo() {
   await a.redo();
   _undoStack.push(a);
   toast(`↪ ${a.label}`);
+  _updateUndoRedoBtns();
 }
 
 function _reloadActivePane() {
@@ -2008,6 +2011,15 @@ function _reloadActivePane() {
   if (p === 'habits')    return Promise.all([loadHabits(), loadGoals()]);
   return Promise.resolve();
 }
+
+function _updateUndoRedoBtns() {
+  const u = document.getElementById('undo-btn');
+  const r = document.getElementById('redo-btn');
+  if (u) u.disabled = _undoStack.length === 0;
+  if (r) r.disabled = _redoStack.length === 0;
+}
+document.getElementById('undo-btn')?.addEventListener('click', _doUndo);
+document.getElementById('redo-btn')?.addEventListener('click', _doRedo);
 
 // Ctrl+Z = undo, Ctrl+Y / Ctrl+Shift+Z = redo  (skip when focus is in an input)
 document.addEventListener('keydown', e => {
