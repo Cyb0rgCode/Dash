@@ -1201,27 +1201,63 @@ $("#edit-form").addEventListener("submit", async e => {
 
 // ── JSON Import ────────────────────────────────────────────────────────────────
 
-const AI_PROMPT = `You are a productivity assistant. I will paste files, documents, syllabi, problem sets, schedules, or any content below. Extract EVERY actionable item as a task.
+function buildAIPrompt() {
+  const today = new Date().toISOString().slice(0, 10);
+  const year  = today.slice(0, 4);
+  return `You are a task-extraction assistant. Today is ${today}.
 
-Return ONLY a valid JSON array — no markdown, no explanation. Each object must have:
+I will paste content below (syllabus, problem set, document, schedule, email, notes, or any source). Extract EVERY actionable item as a structured task list.
 
-- "title": string — specific task using exact names/numbers from the content (e.g. "Exercises 1–8", not "Do homework")
-- "category": string — the course or subject name exactly as it appears (e.g. "Math 201", "Physics II", "CS50"). For non-class items use "Work", "Personal", "Health", etc.
-- "chapter": string | null — the chapter, section, or topic within the course (e.g. "Chapter 3", "Week 5", "Unit 2: Integration"). null if not applicable
-- "task_type": one of — "exercise" | "quiz" | "assignment" | "reading" | "lab" | "project" | "lecture" | "other"
-- "priority": "high" | "medium" | "low" — based on deadline proximity and grade weight
-- "urgent": false — default false; only set true if due within 48 hours or explicitly flagged urgent in the content
-- "important": false — default false; only set true if it directly affects a grade, major milestone, or stated goal
-- "deadline": "YYYY-MM-DD" | null — extract exact dates; null if none stated
-- "estimated_minutes": number — realistic completion time (reading ≈ 2 min/page, per problem ≈ 20–40 min, coding task ≈ 45–120 min, short drill ≈ 15–30 min)
+Return ONLY a valid JSON array — no markdown fences, no explanation, no commentary before or after. Each element must be an object with exactly these keys:
+
+"title"             — string. Precise, action-first title using exact names from the content.
+                      Good: "Solve Exercises 3.1–3.8", "Read Chapter 5 pp. 112–134", "Submit Lab 4 report"
+                      Bad:  "Do homework", "Read", "Assignment"
+
+"category"          — string. The course, project, or domain exactly as named in the content.
+                      Examples: "Math 201", "Physics II Lab", "CS50", "Work", "Personal", "Health"
+                      Use "" only if truly uncategorisable.
+
+"chapter"           — string | null. The section, chapter, week, unit, or topic within the category.
+                      Examples: "Chapter 3 – Integration", "Week 5", "Unit 2", "Sprint 12"
+                      null if not applicable.
+
+"task_type"         — one of: "exercise" | "quiz" | "assignment" | "reading" | "lab" | "project" | "lecture" | "other"
+
+"priority"          — "high" | "medium" | "low"
+                      high   → due within 7 days, heavily weighted, or explicitly critical
+                      medium → due within 2–4 weeks or moderate weight
+                      low    → distant deadline, optional, or supplementary
+
+"urgent"            — boolean. true only if due within 48 hours of ${today} OR explicitly marked urgent/critical.
+                      Default: false.
+
+"important"         — boolean. true if it directly affects a grade, key milestone, stated goal, or has major consequences.
+                      Default: false.
+
+"deadline"          — "YYYY-MM-DD" | null. Extract exact dates; infer year as ${year} unless a later year is clearly implied.
+                      null if no date is mentioned.
+
+"estimated_minutes" — positive integer. Realistic time estimate:
+                      • Per written problem / exercise : 20–40 min
+                      • Reading                        : ~2 min per page
+                      • Short quiz / drill             : 15–30 min
+                      • Coding task                    : 45–120 min
+                      • Lab report / essay             : 60–180 min
+                      • Lecture review / summary       : 30–60 min
+                      • Project milestone              : 120–300 min
 
 Rules:
-- urgent and important start at false — raise them only when the content clearly justifies it
-- Break compound items into individual tasks (one problem set = one task per section if separable)
-- estimated_minutes must be a positive integer
+1. Extract EVERY actionable item — do not skip anything that requires action.
+2. Split compound items: if a problem set has labelled sections, create one task per section.
+3. Never invent information not present in the source.
+4. urgent and important default to false — only raise them when clearly justified by the content.
+5. estimated_minutes must be a positive integer (never 0 or null).
+6. If the same task recurs with different deadlines, create a separate entry for each occurrence.
 
-[PASTE YOUR FILES, SYLLABUS, PROBLEM SET, SCHEDULE, OR ANY CONTENT BELOW]
+[PASTE YOUR CONTENT BELOW — syllabus, problem set, schedule, email, notes, etc.]
 `;
+}
 
 $("#task-import-input").addEventListener("change", async e => {
   const file = e.target.files[0];
@@ -1267,12 +1303,13 @@ $("#task-import-input").addEventListener("change", async e => {
 });
 
 $("#copy-prompt-btn").addEventListener("click", async () => {
+  const prompt = buildAIPrompt();
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(AI_PROMPT);
+      await navigator.clipboard.writeText(prompt);
     } else {
       const ta = document.createElement("textarea");
-      ta.value = AI_PROMPT;
+      ta.value = prompt;
       ta.style.cssText = "position:fixed;opacity:0";
       document.body.appendChild(ta);
       ta.focus();
