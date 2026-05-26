@@ -404,15 +404,54 @@ def decline_delegation(uid, deleg_id):
     if not row:
         conn.close()
         return jsonify({"error": "delegation not found"}), 404
-    # Delete the copy task and the delegation record
+    # Delete the copy task and clear links
     if row["copy_task_id"]:
         conn.execute("DELETE FROM task_logs WHERE task_id = ?", (row["copy_task_id"],))
         conn.execute("DELETE FROM tasks WHERE id = ?",          (row["copy_task_id"],))
-    # Clear delegated_out on original task
-    conn.execute(
-        "UPDATE tasks SET delegated_out = NULL WHERE delegated_out = ?", (deleg_id,)
-    )
-    conn.execute("UPDATE delegations SET status = 'declined' WHERE id = ?", (deleg_id,))
+    conn.execute("UPDATE tasks SET delegated_out = NULL WHERE delegated_out = ?", (deleg_id,))
+    conn.execute("UPDATE delegations SET status = 'declined', copy_task_id = NULL WHERE id = ?", (deleg_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/delegations/<int:deleg_id>/unaccept", methods=["POST"])
+@require_user
+def unaccept_delegation(uid, deleg_id):
+    """Recipient reverts an accepted delegation back to pending."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM delegations WHERE id = ? AND to_user_id = ? AND status = 'accepted'",
+        (deleg_id, uid),
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "delegation not found or not accepted"}), 404
+    conn.execute("UPDATE delegations SET status = 'pending' WHERE id = ?", (deleg_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/delegations/<int:deleg_id>/revoke", methods=["POST"])
+@require_user
+def revoke_delegation(uid, deleg_id):
+    """Sender cancels a delegation they sent (any status except done)."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM delegations WHERE id = ? AND from_user_id = ? AND status != 'done'",
+        (deleg_id, uid),
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "delegation not found or already completed"}), 404
+    # Remove copy task from recipient's account
+    if row["copy_task_id"]:
+        conn.execute("DELETE FROM task_logs WHERE task_id = ?", (row["copy_task_id"],))
+        conn.execute("DELETE FROM tasks WHERE id = ?",          (row["copy_task_id"],))
+    # Clear delegated_out on original task so it becomes a normal task again
+    conn.execute("UPDATE tasks SET delegated_out = NULL WHERE delegated_out = ?", (deleg_id,))
+    conn.execute("UPDATE delegations SET status = 'revoked', copy_task_id = NULL WHERE id = ?", (deleg_id,))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})

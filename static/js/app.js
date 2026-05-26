@@ -1820,14 +1820,19 @@ function _delegationChip(t) {
   const d = t.delegation_out;
   const i = t.delegation_in;
   if (d) {
-    const icon = { pending: '⏳', accepted: '✓', declined: '✕', done: '✅' }[d.status] ?? '';
-    return `<span class="matrix-delegation-chip out" title="Delegated to @${escHtml(d.to_username)}">${icon} @${escHtml(d.to_username)}</span>`;
+    const icon     = { pending: '⏳', accepted: '✓', declined: '✕', done: '✅', revoked: '↩' }[d.status] ?? '';
+    const canRevoke = d.status !== 'done' && d.status !== 'revoked' && d.status !== 'declined';
+    return `<span class="matrix-delegation-chip out" data-deleg-id="${d.id}" title="Delegated to @${escHtml(d.to_username)}">${icon} @${escHtml(d.to_username)}${
+      canRevoke ? ` <button class="deleg-revoke" title="Revoke delegation">✕</button>` : ''
+    }</span>`;
   }
   if (i) {
-    const isPending = i.status === 'pending';
-    return `<span class="matrix-delegation-chip in${isPending ? ' pending' : ''}" data-deleg-id="${i.id}">← @${escHtml(i.from_username)}${isPending
-      ? ` <button class="deleg-accept" title="Accept">✓</button><button class="deleg-decline" title="Decline">✕</button>`
-      : ''}</span>`;
+    const isPending  = i.status === 'pending';
+    const isAccepted = i.status === 'accepted';
+    return `<span class="matrix-delegation-chip in" data-deleg-id="${i.id}">← @${escHtml(i.from_username)}${
+      isPending  ? ` <button class="deleg-accept" title="Accept">✓</button><button class="deleg-decline" title="Decline">✕</button>` :
+      isAccepted ? ` <button class="deleg-unaccept" title="Undo acceptance">↩</button>` : ''
+    }</span>`;
   }
   return '';
 }
@@ -1947,21 +1952,30 @@ $("#tab-matrix").addEventListener("click", e => {
   if (li) _showDelegatePopover(li, Number(li.dataset.id));
 });
 
-// Accept / decline incoming delegation chips
+// Accept / decline / unaccept / revoke delegation chips
 $("#tab-matrix").addEventListener("click", async e => {
-  const accept  = e.target.closest(".deleg-accept");
-  const decline = e.target.closest(".deleg-decline");
-  if (!accept && !decline) return;
-  e.stopPropagation();
-  const chip    = (accept || decline).closest(".matrix-delegation-chip");
+  const accept   = e.target.closest(".deleg-accept");
+  const decline  = e.target.closest(".deleg-decline");
+  const unaccept = e.target.closest(".deleg-unaccept");
+  const revoke   = e.target.closest(".deleg-revoke");
+  const hit = accept || decline || unaccept || revoke;
+  if (!hit) return;
+  e.stopImmediatePropagation();
+  const chip    = hit.closest(".matrix-delegation-chip");
   const delegId = Number(chip?.dataset.delegId);
   if (!delegId) return;
   if (accept) {
-    await api(`/api/delegations/${delegId}/accept`, 'POST', {});
+    await api(`/api/delegations/${delegId}/accept`,   'POST', {});
     toast("Delegation accepted ✓");
-  } else {
-    await api(`/api/delegations/${delegId}/decline`, 'POST', {});
+  } else if (decline) {
+    await api(`/api/delegations/${delegId}/decline`,  'POST', {});
     toast("Delegation declined");
+  } else if (unaccept) {
+    await api(`/api/delegations/${delegId}/unaccept`, 'POST', {});
+    toast("Acceptance undone — back to pending");
+  } else if (revoke) {
+    await api(`/api/delegations/${delegId}/revoke`,   'POST', {});
+    toast("Delegation revoked");
   }
   loadMatrix();
 });
