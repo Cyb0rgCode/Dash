@@ -48,9 +48,29 @@
   /* Theme-aware surfaces (sidebar, logo glow, filter chips, on-accent text) */
   --glass-tint: 255, 255, 255;
   --glass-alpha: 0.42;
-  --glass-blur: 28px;
-  --glass-saturation: 180%;
+  --glass-blur: 32px;
+  --glass-saturation: 200%;
+  --glass-brightness: 1.06;
   --sidebar-bg: rgba(var(--glass-tint), var(--glass-alpha));
+
+  /* ── Real liquid glass primitives ── */
+  --glass-rim: rgba(255, 255, 255, 0.55);
+  --glass-rim-soft: rgba(255, 255, 255, 0.30);
+  --glass-highlight: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(255, 255, 255, 0.08) 22%,
+    rgba(255, 255, 255, 0.0)  55%,
+    rgba(0, 0, 0, 0.03)       100%
+  );
+  --glass-shadow:
+    inset 0 1px 0   rgba(255, 255, 255, 0.55),
+    inset 0 -1px 1px rgba(20, 20, 40, 0.05),
+    inset 1px 0 0  rgba(255, 255, 255, 0.18),
+    inset -1px 0 0 rgba(20, 20, 40, 0.03),
+    0 1px 2px    rgba(20, 20, 40, 0.04),
+    0 10px 28px  rgba(20, 20, 40, 0.10),
+    0 24px 60px  rgba(20, 20, 40, 0.07);
   --sidebar-border: rgba(20, 20, 40, 0.07);
   --logo-glow-1: rgba(13, 158, 184, 0.18);
   --logo-glow-2: rgba(107, 86, 240, 0.22);
@@ -113,7 +133,26 @@
 
   --glass-tint: 18, 18, 26;
   --glass-alpha: 0.36;
+  --glass-brightness: 1.10;
   --sidebar-bg: rgba(var(--glass-tint), var(--glass-alpha));
+
+  --glass-rim: rgba(255, 255, 255, 0.18);
+  --glass-rim-soft: rgba(255, 255, 255, 0.08);
+  --glass-highlight: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.04) 22%,
+    rgba(255, 255, 255, 0.0)  55%,
+    rgba(0, 0, 0, 0.10)       100%
+  );
+  --glass-shadow:
+    inset 0 1px 0  rgba(255, 255, 255, 0.22),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.18),
+    inset 1px 0 0  rgba(255, 255, 255, 0.06),
+    inset -1px 0 0 rgba(0, 0, 0, 0.08),
+    0 1px 2px    rgba(0, 0, 0, 0.18),
+    0 12px 30px  rgba(0, 0, 0, 0.30),
+    0 28px 72px  rgba(0, 0, 0, 0.22);
   --sidebar-border: rgba(255,255,255,0.06);
   --logo-glow-1: rgba(106,247,200,0.45);
   --logo-glow-2: rgba(124,106,247,0.5);
@@ -154,10 +193,10 @@ body {
 
 .sidebar {
   width: var(--sidebar-w);
-  background: var(--sidebar-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
-  border-right: 1px solid var(--sidebar-border);
+  background: var(--glass-highlight), var(--sidebar-bg);
+  backdrop-filter: blur(40px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(40px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  border-right: 1px solid var(--glass-rim);
   display: flex;
   flex-direction: column;
   padding: 18px 12px;
@@ -166,13 +205,17 @@ body {
   z-index: 10;
   gap: 18px;
   box-shadow:
-    inset 1px 0 0 rgba(255,255,255,0.5),
-    inset 0 1px 0 rgba(255,255,255,0.6);
+    inset 1px 0 0  rgba(255,255,255,0.55),
+    inset 0 1px 0  rgba(255,255,255,0.60),
+    inset -1px 0 0 rgba(20,20,40,0.04),
+    4px 0 24px rgba(20,20,40,0.04);
 }
 [data-theme="dark"] .sidebar {
   box-shadow:
-    inset 1px 0 0 rgba(255,255,255,0.04),
-    inset 0 1px 0 rgba(255,255,255,0.06);
+    inset 1px 0 0  rgba(255,255,255,0.10),
+    inset 0 1px 0  rgba(255,255,255,0.14),
+    inset -1px 0 0 rgba(0,0,0,0.15),
+    4px 0 28px rgba(0,0,0,0.18);
 }
 
 .logo {
@@ -666,15 +709,14 @@ h2 {
 }
 
 .card {
-  background: var(--surface);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid var(--border);
+  position: relative;
+  background: var(--glass-highlight), var(--surface);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  border: 1px solid var(--glass-rim);
   border-radius: var(--radius);
   padding: 20px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    var(--shadow-sm);
+  box-shadow: var(--glass-shadow);
 }
 
 .stat-cards {
@@ -1752,19 +1794,16 @@ body.drag-selecting * { cursor: crosshair !important; }
 .edit-sheet.open .edit-sheet-backdrop { opacity: 1; }
 .edit-sheet-panel {
   position: relative;
-  background: rgba(var(--glass-tint), 0.72);
-  backdrop-filter: blur(36px) saturate(var(--glass-saturation));
-  -webkit-backdrop-filter: blur(36px) saturate(var(--glass-saturation));
-  border: 1px solid rgba(var(--glass-tint), 0.24);
+  background: var(--glass-highlight), rgba(var(--glass-tint), 0.66);
+  backdrop-filter: blur(44px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(44px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  border: 1px solid var(--glass-rim);
   border-radius: var(--radius);
   width: min(520px, calc(100% - 32px));
   max-height: calc(100vh - 64px);
   overflow-y: auto;
   padding: 22px 22px 18px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.20),
-    var(--shadow-md),
-    0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow: var(--glass-shadow);
   transform: translateY(20px) scale(0.98);
   opacity: 0;
   transition: transform 0.45s var(--spring), opacity 0.22s ease;
@@ -2212,18 +2251,12 @@ body.drag-selecting * { cursor: crosshair !important; }
   min-width: 160px;
   overflow: hidden;
 
-  /* Liquid glass */
-  background: rgba(var(--glass-tint), 0.68);
-  backdrop-filter: blur(32px) saturate(var(--glass-saturation));
-  -webkit-backdrop-filter: blur(32px) saturate(var(--glass-saturation));
-  border: 1px solid rgba(var(--glass-tint), 0.22);
-
-  /* Shadow stack */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.04),
-    0 8px 32px rgba(0, 0, 0, 0.13),
-    0 2px 6px  rgba(0, 0, 0, 0.07);
+  /* Real liquid glass */
+  background: var(--glass-highlight), rgba(var(--glass-tint), 0.60);
+  backdrop-filter: blur(40px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(40px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  border: 1px solid var(--glass-rim);
+  box-shadow: var(--glass-shadow);
 
   font-size: 13px;
   font-family: 'Syne', sans-serif;
