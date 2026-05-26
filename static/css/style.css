@@ -215,7 +215,7 @@ body {
     0 0 22px var(--logo-glow-2);
 }
 
-nav { display: flex; flex-direction: column; gap: 2px; position: relative; }
+nav { display: flex; flex-direction: column; gap: 18px; position: relative; }
 
 .nav-indicator {
   position: absolute;
@@ -405,15 +405,6 @@ body.sidebar-collapsed .logo {
   justify-content: center;
   padding: 0;
   gap: 0;
-}
-/* Cube icon same size as nav icons (16px) so it lines up visually */
-body.sidebar-collapsed .logo-cube svg {
-  width: 16px;
-  height: 16px;
-}
-/* Tighten sidebar section gap so logo→nav spacing matches nav→nav spacing */
-body.sidebar-collapsed .sidebar {
-  gap: 4px;
 }
 body.sidebar-collapsed .sidebar-foot {
   display: none;
