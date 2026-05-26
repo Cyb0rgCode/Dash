@@ -179,6 +179,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  height: 40px;
   gap: 6px;
   padding: 0 8px;
   font-weight: 800;
@@ -245,7 +246,8 @@ nav { display: flex; flex-direction: column; gap: 18px; position: relative; }
   border: none;
   color: var(--muted);
   text-align: left;
-  padding: 8px 10px;
+  height: 40px;
+  padding: 0 10px;
   border-radius: 9px;
   cursor: pointer;
   font-size: 13px;
