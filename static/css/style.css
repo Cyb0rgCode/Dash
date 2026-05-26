@@ -911,8 +911,8 @@ h2 {
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
 
 .stacked { flex-direction: column; }
-.form-row-2,
-.toggle-pair { display: contents; }
+.form-row-2 { display: contents; }
+.toggle-pair { display: flex; gap: 8px; }
 .inline-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .inline-row input { flex: 1; min-width: 100px;
   background: var(--surface2);
