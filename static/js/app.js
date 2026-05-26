@@ -2443,10 +2443,11 @@ async function handleAuthSubmit(e) {
       }
       return;
     }
-    await onLoggedIn(data.user);
+    // Full reload flushes all JS state (cached tasks, matrix, habits, etc.)
+    // so the new user starts with a completely clean slate.
+    location.reload();
   } catch (err) {
     setAuthError("Network error. Try again.");
-  } finally {
     submitBtn.disabled = false;
   }
 }
