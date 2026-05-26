@@ -639,6 +639,7 @@ h2 {
 .card.stat[data-tone="green"]:hover::after  { color: var(--green); }
 .card.stat[data-tone="yellow"]:hover::after { color: var(--yellow); }
 .card.stat[data-tone="cyan"]:hover::after   { color: var(--cyan); }
+.card.stat[data-tone="accent"]:hover::after { color: var(--accent); }
 
 .stat-icon {
   width: 44px;
@@ -656,6 +657,7 @@ h2 {
 .card.stat[data-tone="green"]  .stat-icon { background: var(--green-dim);  color: var(--green); }
 .card.stat[data-tone="yellow"] .stat-icon { background: var(--yellow-dim); color: var(--yellow); }
 .card.stat[data-tone="cyan"]   .stat-icon { background: var(--cyan-dim);   color: var(--cyan); }
+.card.stat[data-tone="accent"] .stat-icon { background: var(--accent-dim); color: var(--accent); }
 
 .stat-body { flex: 1; min-width: 0; }
 .stat-num {

@@ -260,6 +260,7 @@ async function loadDashboard() {
   countUp($("#stat-tasks-done"), tasksDoneToday);
   countUp($("#stat-habit-rate"), analytics.habit_completion_rate, { suffix: "%" });
   countUp($("#stat-pending"), pending);
+  countUp($("#stat-total"), tasks.length);
 
   renderDailyChart(analytics.daily_time);
   renderPriorityChart(analytics.time_by_category);
