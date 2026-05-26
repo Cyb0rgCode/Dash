@@ -1875,15 +1875,14 @@ function _showDelegatePopover(li, taskId) {
     <div class="delegate-popover-error"></div>`;
   document.body.appendChild(pop);
 
-  // Position below the row
+  // position: fixed is viewport-relative — do NOT add scrollY
   const rect = li.getBoundingClientRect();
-  const popH = 130;
-  const top  = (rect.bottom + window.scrollY + 4);
-  pop.style.top  = top + 'px';
+  pop.style.top  = (rect.bottom + 4) + 'px';
   pop.style.left = Math.min(rect.left, window.innerWidth - 240) + 'px';
 
   _delegPopover = { el: pop, taskId };
-  pop.querySelector('.dp-user').focus();
+  // Defer focus until after the browser has painted the element
+  requestAnimationFrame(() => pop.querySelector('.dp-user').focus());
 
   const send = async () => {
     const username = pop.querySelector('.dp-user').value.trim();
@@ -1902,7 +1901,8 @@ function _showDelegatePopover(li, taskId) {
   pop.querySelector('.delegate-cancel-btn').addEventListener('click', _hideDelegatePopover);
   pop.querySelector('.dp-user').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
 
-  setTimeout(() => document.addEventListener('click', _delegOutsideClick), 10);
+  // Delay so the originating click doesn't immediately re-close the popover
+  setTimeout(() => document.addEventListener('click', _delegOutsideClick), 120);
 }
 
 function _delegOutsideClick(e) {
@@ -1942,7 +1942,7 @@ $("#tab-matrix").addEventListener("click", async e => {
 $("#tab-matrix").addEventListener("click", e => {
   const btn = e.target.closest(".matrix-delegate-btn");
   if (!btn) return;
-  e.stopPropagation();
+  e.stopImmediatePropagation(); // prevent other #tab-matrix click listeners from firing
   const li = btn.closest("li[data-id]");
   if (li) _showDelegatePopover(li, Number(li.dataset.id));
 });
