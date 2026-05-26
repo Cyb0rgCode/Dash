@@ -15,8 +15,8 @@
 :root {
   /* ── Light palette (coherent w/ dark) ── */
   --bg: #f6f6fa;
-  --surface: #ffffff;
-  --surface2: #f0f0f6;
+  --surface: rgba(255, 255, 255, 0.60);
+  --surface2: rgba(240, 240, 246, 0.48);
   --border: #e2e2ec;
   --border-soft: #ececf3;
 
@@ -47,7 +47,7 @@
 
   /* Theme-aware surfaces (sidebar, logo glow, filter chips, on-accent text) */
   --glass-tint: 255, 255, 255;
-  --glass-alpha: 0.55;
+  --glass-alpha: 0.42;
   --glass-blur: 28px;
   --glass-saturation: 180%;
   --sidebar-bg: rgba(var(--glass-tint), var(--glass-alpha));
@@ -62,9 +62,9 @@
   --banner-bg: linear-gradient(135deg, rgba(107,86,240,0.10) 0%, rgba(13,158,184,0.06) 100%);
   --banner-border: rgba(107, 86, 240, 0.22);
   --banner-glow: radial-gradient(circle, rgba(107,86,240,0.22), transparent 60%);
-  --body-glow-1: radial-gradient(ellipse 1100px 750px at 0% 0%, rgba(107,86,240,0.10), transparent 62%);
-  --body-glow-2: radial-gradient(ellipse 950px 650px at 100% 100%, rgba(13,158,184,0.09), transparent 62%);
-  --body-glow-3: radial-gradient(ellipse 800px 600px at 100% 0%, rgba(13,158,184,0.06), transparent 65%);
+  --body-glow-1: radial-gradient(ellipse 1100px 750px at 0% 0%, rgba(107,86,240,0.16), transparent 62%);
+  --body-glow-2: radial-gradient(ellipse 950px 650px at 100% 100%, rgba(13,158,184,0.14), transparent 62%);
+  --body-glow-3: radial-gradient(ellipse 800px 600px at 100% 0%, rgba(13,158,184,0.10), transparent 65%);
 
   /* Sticky group headers (categories / chapters) — theme-aware glass */
   --sticky-header-bg: rgba(246, 246, 250, 0.82);
@@ -82,8 +82,8 @@
 
 [data-theme="dark"] {
   --bg: #0a0a0f;
-  --surface: #12121a;
-  --surface2: #1a1a26;
+  --surface: rgba(18, 18, 26, 0.52);
+  --surface2: rgba(26, 26, 38, 0.40);
   --border: #1e1e2e;
   --border-soft: #1a1a28;
 
@@ -112,7 +112,7 @@
   --muted: #6060a0;
 
   --glass-tint: 18, 18, 26;
-  --glass-alpha: 0.45;
+  --glass-alpha: 0.36;
   --sidebar-bg: rgba(var(--glass-tint), var(--glass-alpha));
   --sidebar-border: rgba(255,255,255,0.06);
   --logo-glow-1: rgba(106,247,200,0.45);
@@ -125,9 +125,9 @@
   --banner-bg: linear-gradient(135deg, rgba(124,106,247,0.12) 0%, rgba(106,247,200,0.06) 100%);
   --banner-border: rgba(124,106,247,0.25);
   --banner-glow: radial-gradient(circle, rgba(124,106,247,0.28), transparent 60%);
-  --body-glow-1: radial-gradient(ellipse 1100px 750px at 0% 0%, rgba(124,106,247,0.12), transparent 62%);
-  --body-glow-2: radial-gradient(ellipse 950px 650px at 100% 100%, rgba(106,247,200,0.07), transparent 62%);
-  --body-glow-3: radial-gradient(ellipse 800px 600px at 100% 0%, rgba(106,247,200,0.04), transparent 65%);
+  --body-glow-1: radial-gradient(ellipse 1100px 750px at 0% 0%, rgba(124,106,247,0.20), transparent 62%);
+  --body-glow-2: radial-gradient(ellipse 950px 650px at 100% 100%, rgba(106,247,200,0.12), transparent 62%);
+  --body-glow-3: radial-gradient(ellipse 800px 600px at 100% 0%, rgba(106,247,200,0.08), transparent 65%);
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.14);
   --shadow-md: 0 2px 6px rgba(0,0,0,0.22), 0 12px 32px rgba(0,0,0,0.32);
@@ -667,10 +667,14 @@ h2 {
 
 .card {
   background: var(--surface);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    var(--shadow-sm);
 }
 
 .stat-cards {
@@ -1748,14 +1752,19 @@ body.drag-selecting * { cursor: crosshair !important; }
 .edit-sheet.open .edit-sheet-backdrop { opacity: 1; }
 .edit-sheet-panel {
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(var(--glass-tint), 0.72);
+  backdrop-filter: blur(36px) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(36px) saturate(var(--glass-saturation));
+  border: 1px solid rgba(var(--glass-tint), 0.24);
   border-radius: var(--radius);
   width: min(520px, calc(100% - 32px));
   max-height: calc(100vh - 64px);
   overflow-y: auto;
   padding: 22px 22px 18px;
-  box-shadow: var(--shadow-md), 0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    var(--shadow-md),
+    0 0 0 1px rgba(255,255,255,0.04);
   transform: translateY(20px) scale(0.98);
   opacity: 0;
   transition: transform 0.45s var(--spring), opacity 0.22s ease;
