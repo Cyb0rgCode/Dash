@@ -215,7 +215,7 @@ body {
     0 0 22px var(--logo-glow-2);
 }
 
-nav { display: flex; flex-direction: column; gap: 18px; position: relative; }
+nav { display: flex; flex-direction: column; gap: 18px; position: relative; margin-top: 16px; }
 
 .nav-indicator {
   position: absolute;
