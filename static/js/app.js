@@ -2478,12 +2478,17 @@ function toast(msg, type = "success") {
   const container = $("#toast-container");
   const el = document.createElement("div");
   el.className = `toast ${type}`;
-  el.textContent = msg;
+
+  const iconSvg = type === "error"
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+  el.innerHTML = `<span class="toast-icon" aria-hidden="true">${iconSvg}</span><span class="toast-msg">${escHtml(msg)}</span>`;
   container.appendChild(el);
   setTimeout(() => {
     el.classList.add("fade-out");
     el.addEventListener("animationend", () => el.remove(), { once: true });
-  }, 2600);
+  }, 2800);
 }
 
 // ── Escape HTML ────────────────────────────────────────────────────────────────
