@@ -423,7 +423,7 @@ body.sidebar-collapsed .sidebar-foot {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 4px 6px 4px 0;
+  padding: 4px 6px 4px 1px;
   border-top: 1px solid var(--border-soft);
 }
 .sidebar-history-btn {
