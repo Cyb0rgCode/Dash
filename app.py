@@ -256,26 +256,26 @@ def _timer_elapsed(row):
 @require_user
 def get_timer(uid):
     conn = get_db()
-    row = conn.execute(
+    rows = conn.execute(
         "SELECT * FROM matrix_timers WHERE user_id = ?", (uid,)
-    ).fetchone()
+    ).fetchall()
     conn.close()
-    if not row:
-        return jsonify({"active": False})
-    return jsonify({
-        "active":          True,
-        "task_id":         row["task_id"],
-        "elapsed_sec":     _timer_elapsed(row),
-        "paused":          bool(row["paused"]),
-        "started_at":      row["started_at"],
-        "accumulated_sec": row["accumulated_sec"],
-    })
+    return jsonify([
+        {
+            "task_id":         row["task_id"],
+            "elapsed_sec":     _timer_elapsed(row),
+            "paused":          bool(row["paused"]),
+            "started_at":      row["started_at"],
+            "accumulated_sec": row["accumulated_sec"],
+        }
+        for row in rows
+    ])
 
 
 @app.route("/api/timer/start", methods=["POST"])
 @require_user
 def start_timer(uid):
-    task_id = request.json.get("task_id")
+    task_id = (request.json or {}).get("task_id")
     if not task_id:
         return jsonify({"error": "task_id required"}), 400
     now = time.time()
@@ -294,18 +294,21 @@ def start_timer(uid):
 @app.route("/api/timer/pause", methods=["POST"])
 @require_user
 def pause_timer(uid):
+    task_id = (request.json or {}).get("task_id")
+    if not task_id:
+        return jsonify({"error": "task_id required"}), 400
     now = time.time()
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM matrix_timers WHERE user_id = ?", (uid,)
+        "SELECT * FROM matrix_timers WHERE user_id = ? AND task_id = ?", (uid, task_id)
     ).fetchone()
     if not row or row["paused"]:
         conn.close()
-        return jsonify({"ok": False, "error": "no running timer"}), 400
+        return jsonify({"ok": False, "error": "no running timer for this task"}), 400
     new_acc = row["accumulated_sec"] + int(now - row["started_at"])
     conn.execute(
-        "UPDATE matrix_timers SET accumulated_sec = ?, paused = 1 WHERE user_id = ?",
-        (new_acc, uid),
+        "UPDATE matrix_timers SET accumulated_sec = ?, paused = 1 WHERE user_id = ? AND task_id = ?",
+        (new_acc, uid, task_id),
     )
     conn.commit()
     conn.close()
@@ -315,17 +318,20 @@ def pause_timer(uid):
 @app.route("/api/timer/resume", methods=["POST"])
 @require_user
 def resume_timer(uid):
+    task_id = (request.json or {}).get("task_id")
+    if not task_id:
+        return jsonify({"error": "task_id required"}), 400
     now = time.time()
     conn = get_db()
     row = conn.execute(
-        "SELECT * FROM matrix_timers WHERE user_id = ?", (uid,)
+        "SELECT * FROM matrix_timers WHERE user_id = ? AND task_id = ?", (uid, task_id)
     ).fetchone()
     if not row or not row["paused"]:
         conn.close()
         return jsonify({"ok": False, "error": "timer not paused"}), 400
     conn.execute(
-        "UPDATE matrix_timers SET paused = 0, started_at = ? WHERE user_id = ?",
-        (now, uid),
+        "UPDATE matrix_timers SET paused = 0, started_at = ? WHERE user_id = ? AND task_id = ?",
+        (now, uid, task_id),
     )
     conn.commit()
     conn.close()
@@ -335,8 +341,14 @@ def resume_timer(uid):
 @app.route("/api/timer", methods=["DELETE"])
 @require_user
 def delete_timer(uid):
+    task_id = (request.json or {}).get("task_id") if request.is_json else None
     conn = get_db()
-    conn.execute("DELETE FROM matrix_timers WHERE user_id = ?", (uid,))
+    if task_id:
+        conn.execute(
+            "DELETE FROM matrix_timers WHERE user_id = ? AND task_id = ?", (uid, task_id)
+        )
+    else:
+        conn.execute("DELETE FROM matrix_timers WHERE user_id = ?", (uid,))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})

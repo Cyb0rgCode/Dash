@@ -77,11 +77,12 @@ def init_db():
         );
 
         CREATE TABLE IF NOT EXISTS matrix_timers (
-            user_id         INTEGER PRIMARY KEY,
+            user_id         INTEGER NOT NULL,
             task_id         INTEGER NOT NULL,
             started_at      REAL    NOT NULL,
             accumulated_sec INTEGER NOT NULL DEFAULT 0,
-            paused          INTEGER NOT NULL DEFAULT 0
+            paused          INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, task_id)
         );
     """)
     conn.commit()
@@ -112,6 +113,21 @@ def init_db():
                 conn.commit()
             except sqlite3.OperationalError:
                 pass  # column already exists
+
+    # Migrate matrix_timers from single-PK (user_id only) → composite PK (user_id, task_id)
+    pk_info = conn.execute("PRAGMA table_info(matrix_timers)").fetchall()
+    pk_cols = [col["name"] for col in pk_info if col["pk"] > 0]
+    if pk_cols == ["user_id"]:
+        conn.execute("DROP TABLE matrix_timers")
+        conn.execute("""CREATE TABLE matrix_timers (
+            user_id         INTEGER NOT NULL,
+            task_id         INTEGER NOT NULL,
+            started_at      REAL    NOT NULL,
+            accumulated_sec INTEGER NOT NULL DEFAULT 0,
+            paused          INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, task_id)
+        )""")
+        conn.commit()
 
     # Ensure default owner exists and backfill any unowned rows to them.
     # This runs once: after the first run, all rows have user_id set, so
