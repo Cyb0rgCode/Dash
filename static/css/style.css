@@ -145,7 +145,8 @@ body {
   background-attachment: fixed;
   color: var(--text);
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   font-size: 14px;
   letter-spacing: -0.005em;
   -webkit-font-smoothing: antialiased;
@@ -460,7 +461,9 @@ body.sidebar-collapsed .sidebar-foot {
   margin-left: var(--sidebar-w);
   flex: 1;
   padding: 36px 40px;
-  max-width: 1140px;
+  height: 100vh;
+  overflow-y: auto;
+  min-width: 0;
 }
 
 .tab { display: none; }
@@ -1430,6 +1433,13 @@ h2 {
     margin-left: 0;
     padding: calc(32px + env(safe-area-inset-top)) 14px calc(74px + env(safe-area-inset-bottom)) 14px;
     max-width: 100%;
+    height: auto;
+    overflow-y: visible;
+  }
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .tab.active {
