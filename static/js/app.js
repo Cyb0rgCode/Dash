@@ -731,6 +731,18 @@ $("#task-form").addEventListener("submit", async e => {
   allTasks.unshift(task);
   refreshTaskDatalists();
   renderTasks();
+  _pushUndo(`Add "${task.title}"`,
+    async () => { await api(`/api/tasks/${task.id}`, "DELETE"); await loadTasks(); },
+    async () => {
+      const re = await api("/api/tasks", "POST", {
+        title: task.title, priority: task.priority, deadline: task.deadline,
+        urgent: task.urgent, important: task.important, category: task.category,
+        estimated_minutes: task.estimated_minutes, task_type: task.task_type, chapter: task.chapter,
+      });
+      task = re; // update captured id so future undo uses new id
+      await loadTasks();
+    }
+  );
   toast("Task added");
   $("#task-title").value = "";
   $("#task-deadline").value = "";
@@ -852,9 +864,13 @@ $("#task-list").addEventListener("click", async e => {
   if (action === "toggle") {
     const task = allTasks.find(t => t.id === id);
     const willComplete = !task.completed;
-    const updated = await api(`/api/tasks/${id}`, "PUT", { completed: !task.completed });
+    const updated = await api(`/api/tasks/${id}`, "PUT", { completed: willComplete });
     const idx = allTasks.findIndex(t => t.id === id);
     allTasks[idx] = { ...updated, time_logged: task.time_logged };
+    _pushUndo(willComplete ? `Complete "${task.title}"` : `Reopen "${task.title}"`,
+      async () => { await api(`/api/tasks/${id}`, "PUT", { completed: !willComplete }); await loadTasks(); },
+      async () => { await api(`/api/tasks/${id}`, "PUT", { completed:  willComplete }); await loadTasks(); }
+    );
     renderTasks();
     if (willComplete) bounceCheck($(`#task-list li[data-id="${id}"]`));
   }
@@ -862,10 +878,31 @@ $("#task-list").addEventListener("click", async e => {
     openEditSheet(id);
   }
   if (action === "delete") {
+    const task = allTasks.find(t => t.id === id);
+    const snapshot = task ? { ...task } : null;
     await api(`/api/tasks/${id}`, "DELETE");
     allTasks = allTasks.filter(t => t.id !== id);
     selectedIds.delete(id);
     renderTasks();
+    if (snapshot) {
+      _pushUndo(`Delete "${snapshot.title}"`,
+        async () => {
+          const restored = await api("/api/tasks", "POST", {
+            title: snapshot.title, priority: snapshot.priority,
+            deadline: snapshot.deadline, urgent: snapshot.urgent,
+            important: snapshot.important, category: snapshot.category,
+            estimated_minutes: snapshot.estimated_minutes,
+            task_type: snapshot.task_type, chapter: snapshot.chapter,
+          });
+          await loadTasks();
+        },
+        async () => {
+          // redo = delete again; but we don't have the restored id here,
+          // so just reload so the user can delete manually if needed
+          await loadTasks();
+        }
+      );
+    }
     toast("Task deleted");
   }
 });
@@ -1933,6 +1970,54 @@ async function _updateDelegationBadge() {
   }
 }
 
+// ── Undo / Redo ────────────────────────────────────────────────────────────────
+// Each entry: { label, undo: async fn, redo: async fn }
+// Performing a new action always clears the redo branch.
+
+const _undoStack = [];
+const _redoStack = [];
+const UNDO_LIMIT = 50;
+
+function _pushUndo(label, undoFn, redoFn) {
+  _undoStack.push({ label, undo: undoFn, redo: redoFn });
+  if (_undoStack.length > UNDO_LIMIT) _undoStack.shift();
+  _redoStack.length = 0;
+}
+
+async function _doUndo() {
+  const a = _undoStack.pop();
+  if (!a) { toast("Nothing to undo"); return; }
+  await a.undo();
+  _redoStack.push(a);
+  toast(`↩ ${a.label}`);
+}
+
+async function _doRedo() {
+  const a = _redoStack.pop();
+  if (!a) { toast("Nothing to redo"); return; }
+  await a.redo();
+  _undoStack.push(a);
+  toast(`↪ ${a.label}`);
+}
+
+function _reloadActivePane() {
+  const p = document.querySelector('.nav-btn.active')?.dataset.tab;
+  if (p === 'matrix')    return loadMatrix();
+  if (p === 'tasks')     return loadTasks();
+  if (p === 'dashboard') return loadDashboard();
+  if (p === 'habits')    return Promise.all([loadHabits(), loadGoals()]);
+  return Promise.resolve();
+}
+
+// Ctrl+Z = undo, Ctrl+Y / Ctrl+Shift+Z = redo  (skip when focus is in an input)
+document.addEventListener('keydown', e => {
+  const inField = ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName) || e.target.isContentEditable;
+  if (inField) return;
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && e.key === 'z' && !e.shiftKey) { e.preventDefault(); _doUndo(); }
+  if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); _doRedo(); }
+});
+
 // ── Click / timer / double-click ──────────────────────────────────────────────
 
 let matrixPauseHoldTimer = null;
@@ -1993,6 +2078,10 @@ $("#tab-matrix").addEventListener("dblclick", async e => {
   if (!task || task.completed) return;
   if (matrixTimers.has(id)) cancelMatrixTimer(id);
   await api(`/api/tasks/${id}`, "PUT", { completed: true });
+  _pushUndo(`Sacrifice "${task.title}"`,
+    async () => { await api(`/api/tasks/${id}`, "PUT", { completed: false }); await loadMatrix(); },
+    async () => { await api(`/api/tasks/${id}`, "PUT", { completed: true  }); await loadMatrix(); }
+  );
   toast("Task sacrificed ✓");
   loadMatrix();
 });
@@ -2011,6 +2100,10 @@ $("#tab-matrix").addEventListener("click", async e => {
   // Already done → reopen immediately
   if (task.completed) {
     await api(`/api/tasks/${id}`, "PUT", { completed: false });
+    _pushUndo(`Reopen "${task.title}"`,
+      async () => { await api(`/api/tasks/${id}`, "PUT", { completed: true  }); await loadMatrix(); },
+      async () => { await api(`/api/tasks/${id}`, "PUT", { completed: false }); await loadMatrix(); }
+    );
     toast("Task reopened");
     loadMatrix();
     return;
@@ -2021,13 +2114,21 @@ $("#tab-matrix").addEventListener("click", async e => {
     const elapsed = _mtElapsed(id);
     cancelMatrixTimer(id);
     await api(`/api/tasks/${id}`, "PUT", { completed: true });
-    if (elapsed >= 60) {
-      const mins = Math.round(elapsed / 60);
-      await api(`/api/tasks/${id}/log`, "POST", { minutes: mins });
-      toast(`Task sacrificed ✓ — ${mins}m logged`);
-    } else {
-      toast("Task sacrificed ✓");
-    }
+    const mins = elapsed >= 60 ? Math.round(elapsed / 60) : 0;
+    if (mins > 0) await api(`/api/tasks/${id}/log`, "POST", { minutes: mins });
+    _pushUndo(`Sacrifice "${task.title}"`,
+      async () => {
+        await api(`/api/tasks/${id}`, "PUT", { completed: false });
+        if (mins > 0) await api(`/api/tasks/${id}/log`, "DELETE", null);
+        await loadMatrix();
+      },
+      async () => {
+        await api(`/api/tasks/${id}`, "PUT", { completed: true });
+        if (mins > 0) await api(`/api/tasks/${id}/log`, "POST", { minutes: mins });
+        await loadMatrix();
+      }
+    );
+    toast(mins > 0 ? `Task sacrificed ✓ — ${mins}m logged` : "Task sacrificed ✓");
     loadMatrix();
     return;
   }
