@@ -180,7 +180,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 0 8px;
+  padding: 0 8px 28px;
   font-weight: 800;
   color: var(--text);
   letter-spacing: -0.02em;
@@ -215,7 +215,7 @@ body {
     0 0 22px var(--logo-glow-2);
 }
 
-nav { display: flex; flex-direction: column; gap: 18px; position: relative; margin-top: 16px; }
+nav { display: flex; flex-direction: column; gap: 18px; position: relative; }
 
 .nav-indicator {
   position: absolute;
