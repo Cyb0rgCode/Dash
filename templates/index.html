@@ -134,9 +134,15 @@
 
     <!-- DASHBOARD -->
     <section id="tab-dashboard" class="tab active">
-      <header class="page-header">
-        <h1 class="page-title" id="greeting">Hello</h1>
-        <p class="page-subtitle" id="dashboard-meta">Loading your day…</p>
+      <header class="page-header dashboard-header">
+        <div class="dashboard-header-text">
+          <h1 class="page-title" id="greeting">Hello</h1>
+          <p class="page-subtitle" id="dashboard-meta">Loading your day…</p>
+        </div>
+        <div class="dashboard-total-badge">
+          <div class="stat-num" id="stat-total">—</div>
+          <div class="stat-label">Total Tasks</div>
+        </div>
       </header>
 
       <div class="focus-banner card" id="focus-banner">
@@ -189,22 +195,6 @@
           <div class="stat-body">
             <div class="stat-num" id="stat-pending">—</div>
             <div class="stat-label">Open Tasks</div>
-          </div>
-        </div>
-        <div class="card stat" data-tone="accent">
-          <div class="stat-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="8" y1="6" x2="21" y2="6"/>
-              <line x1="8" y1="12" x2="21" y2="12"/>
-              <line x1="8" y1="18" x2="21" y2="18"/>
-              <line x1="3" y1="6" x2="3.01" y2="6"/>
-              <line x1="3" y1="12" x2="3.01" y2="12"/>
-              <line x1="3" y1="18" x2="3.01" y2="18"/>
-            </svg>
-          </div>
-          <div class="stat-body">
-            <div class="stat-num" id="stat-total">—</div>
-            <div class="stat-label">Total Tasks</div>
           </div>
         </div>
       </div>
