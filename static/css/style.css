@@ -421,26 +421,26 @@ body.sidebar-collapsed .sidebar-foot {
 /* ── Sidebar history buttons (Undo / Redo) ── */
 .sidebar-history {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 6px;
+  flex-direction: row;
+  gap: 2px;
+  padding: 4px 6px;
   border-top: 1px solid var(--border-soft);
 }
 .sidebar-history-btn {
-  height: 40px;
+  height: 28px;
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 10px;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 6px;
   border: none;
   border-radius: var(--radius-sm, 6px);
   background: none;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-family: inherit;
   cursor: pointer;
-  width: 100%;
-  text-align: left;
   transition: background 0.15s, color 0.15s;
 }
 .sidebar-history-btn:hover:not(:disabled) {
@@ -448,14 +448,19 @@ body.sidebar-collapsed .sidebar-foot {
   color: var(--text);
 }
 .sidebar-history-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.3;
   cursor: default;
 }
+body.sidebar-collapsed .sidebar-history {
+  flex-direction: column;
+  padding: 4px 0;
+  align-items: center;
+}
 body.sidebar-collapsed .sidebar-history-btn {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
+  flex: none;
   padding: 0;
-  margin: 0 auto;
   justify-content: center;
   gap: 0;
 }
