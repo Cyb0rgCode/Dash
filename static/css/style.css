@@ -354,7 +354,6 @@ nav { display: flex; flex-direction: column; gap: 18px; position: relative; }
 }
 
 .sidebar-foot {
-  margin-top: auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -414,6 +413,7 @@ body.sidebar-collapsed .sidebar-foot {
 
 /* ── Sidebar history buttons (Undo / Redo) ── */
 .sidebar-history {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
