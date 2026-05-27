@@ -2735,9 +2735,6 @@ function wireAuthUI() {
     });
   }
 
-  // Export from sidebar (when already logged in)
-  const exportNowBtn = $("#export-now-btn");
-  if (exportNowBtn) exportNowBtn.addEventListener("click", exportBackup);
 
   setAuthMode("login");
 }
