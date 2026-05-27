@@ -2687,11 +2687,12 @@ function wireAuthUI() {
   const signupExtras  = $("#auth-signup-extras");
   if (showUsersBtn) {
     showUsersBtn.addEventListener("click", async () => {
+      // Hide without password prompt
+      if (!usersListEl.hidden) { usersListEl.hidden = true; showUsersBtn.textContent = "Show all users"; return; }
+      // Show — ask for password first
       const pwd = prompt("Enter password to view users:");
       if (pwd === null) return;
       if (pwd !== "claude") { alert("Wrong password."); return; }
-      // Toggle list visibility
-      if (!usersListEl.hidden) { usersListEl.hidden = true; showUsersBtn.textContent = "Show all users"; return; }
       showUsersBtn.disabled = true;
       try {
         const res  = await fetch("/api/auth/users");
