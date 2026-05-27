@@ -2386,20 +2386,13 @@ body.drag-selecting * { cursor: crosshair !important; }
   border-radius: 20px; padding: 30px 26px 26px;
   box-shadow: var(--glass-shadow);
 }
+/* Positions the login-page theme toggle at the same spot as the sidebar-user pill */
 .auth-theme-btn {
-  position: fixed; top: 14px; right: 14px; z-index: 10000;
-  width: 26px; height: 26px; padding: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--surface2); border: 1px solid var(--border-soft);
-  border-radius: 50%; cursor: pointer; color: var(--muted);
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top));
+  right: 24px;
+  z-index: 10000;
 }
-.auth-theme-btn:hover { color: var(--accent); background: var(--accent-dim); border-color: rgba(var(--accent-rgb), 0.3); }
-.auth-theme-btn:active { transform: scale(0.9); }
-.auth-theme-btn .icon-sun  { display: block; }
-.auth-theme-btn .icon-moon { display: none;  }
-[data-theme="dark"] .auth-theme-btn .icon-sun  { display: none;  }
-[data-theme="dark"] .auth-theme-btn .icon-moon { display: block; }
 
 .auth-brand {
   display: flex; flex-direction: column;
