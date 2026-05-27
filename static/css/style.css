@@ -231,7 +231,7 @@ body {
 .logo:hover { opacity: 0.75; }
 .logo-text {
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1;
 }
 .logo-text span {
@@ -2400,7 +2400,7 @@ body.drag-selecting * { cursor: crosshair !important; }
   align-items: center; gap: 6px; margin-bottom: 22px; text-align: center;
 }
 .auth-brand-text {
-  font-family: 'Syne', sans-serif; font-size: 44px; font-weight: 800;
+  font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800;
   letter-spacing: -0.03em;
   background: linear-gradient(135deg, var(--accent) 0%, var(--cyan) 100%);
   -webkit-background-clip: text; background-clip: text;
