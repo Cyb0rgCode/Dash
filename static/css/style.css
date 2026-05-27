@@ -2257,7 +2257,7 @@ body.drag-selecting * { cursor: crosshair !important; }
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 9999;
+  z-index: 10002;
   pointer-events: none;
   align-items: flex-end;
 }
@@ -2621,8 +2621,7 @@ body.drag-selecting * { cursor: crosshair !important; }
 
 body.auth-visible { overflow: hidden; }
 body.auth-visible .sidebar,
-body.auth-visible .content,
-body.auth-visible #toast-container { visibility: hidden; }
+body.auth-visible .content { visibility: hidden; }
 
 @media (max-width: 500px) {
   .auth-card { padding: 24px 20px 22px; border-radius: 16px; }
