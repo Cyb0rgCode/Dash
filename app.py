@@ -1,13 +1,14 @@
-import json
+import io
 import os
 import re
 import secrets
 import sqlite3
+import tempfile
 import time
 from datetime import date, timedelta
 from functools import wraps
 
-from flask import Flask, jsonify, request, render_template, session, Response
+from flask import Flask, jsonify, request, render_template, session, Response, send_file
 
 from database import get_db, init_db, get_user_by_username, create_user
 
@@ -186,184 +187,78 @@ def health():
 
 # ── Backup / restore ──────────────────────────────────────────────────────────
 
-@app.route("/api/backup/export")
-def backup_export():
-    """Export all data for a user as a downloadable JSON file.
-    Works with an active session OR a ?username= query param (for the login page).
-    """
-    uid = current_user_id()
-    conn = get_db()
+@app.route("/api/backup/export-db")
+def backup_export_db():
+    """Download the entire SQLite database as a .db file.
+    Uses SQLite's online backup API so the snapshot is always consistent.
+    No session required — usable from the login page before signing in."""
+    from database import DB
+    if not os.path.exists(DB):
+        return jsonify({"error": "database not found"}), 404
 
-    if uid:
-        user = conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
-    else:
-        username = request.args.get("username", "").strip()
-        if not username:
-            conn.close()
-            return jsonify({"error": "username required"}), 400
-        user = conn.execute(
-            "SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,)
-        ).fetchone()
+    # SQLite online backup → in-memory bytes (safe even with concurrent writes)
+    buf = io.BytesIO()
+    fd, tmp_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        src = sqlite3.connect(DB)
+        bak = sqlite3.connect(tmp_path)
+        src.backup(bak)
+        bak.close()
+        src.close()
+        with open(tmp_path, "rb") as f:
+            buf.write(f.read())
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
-    if not user:
-        conn.close()
-        return jsonify({"error": "user not found"}), 404
-
-    uid = user["id"]
-
-    tasks = [dict(r) for r in conn.execute(
-        "SELECT * FROM tasks WHERE user_id = ?", (uid,)).fetchall()]
-    task_ids = [t["id"] for t in tasks]
-    task_logs = []
-    for tid in task_ids:
-        task_logs += [dict(r) for r in conn.execute(
-            "SELECT * FROM task_logs WHERE task_id = ?", (tid,)).fetchall()]
-
-    habits = [dict(r) for r in conn.execute(
-        "SELECT * FROM habits WHERE user_id = ?", (uid,)).fetchall()]
-    habit_ids = [h["id"] for h in habits]
-    habit_completions = []
-    for hid in habit_ids:
-        habit_completions += [dict(r) for r in conn.execute(
-            "SELECT * FROM habit_completions WHERE habit_id = ?", (hid,)).fetchall()]
-
-    goals     = [dict(r) for r in conn.execute(
-        "SELECT * FROM goals WHERE user_id = ?", (uid,)).fetchall()]
-    time_logs = [dict(r) for r in conn.execute(
-        "SELECT * FROM time_logs WHERE user_id = ?", (uid,)).fetchall()]
-
-    conn.close()
-
-    backup = {
-        "version": 1,
-        "exported_at": str(date.today()),
-        "username": user["username"],
-        "user": dict(user),
-        "tasks": tasks,
-        "task_logs": task_logs,
-        "habits": habits,
-        "habit_completions": habit_completions,
-        "goals": goals,
-        "time_logs": time_logs,
-    }
-    filename = f"hypercube_{user['username']}_{date.today()}.json"
-    return Response(
-        json.dumps(backup, indent=2),
-        mimetype="application/json",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    buf.seek(0)
+    filename = f"hypercube_{date.today()}.db"
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/octet-stream",
     )
 
 
-@app.route("/api/backup/import", methods=["POST"])
-def backup_import():
-    """Restore a user's data from a backup JSON.  No session required — this is
-    the recovery path used when the DB has been wiped on a fresh deploy."""
-    data = request.get_json(force=True, silent=True)
-    if not data or data.get("version") != 1:
-        return jsonify({"error": "invalid backup file — expected version:1 JSON"}), 400
+@app.route("/api/backup/import-db", methods=["POST"])
+def backup_import_db():
+    """Replace the database with an uploaded .db file.
+    No session required — this is the recovery path after a Render redeploy wipes data."""
+    from database import DB, init_db as _init_db
 
-    username = (data.get("username") or "").strip()
-    if not username:
-        return jsonify({"error": "backup is missing username"}), 400
+    uploaded = request.files.get("db")
+    if not uploaded:
+        return jsonify({"error": "no file provided (field name: db)"}), 400
 
-    conn = get_db()
+    # Validate SQLite magic header before touching anything
+    header = uploaded.read(16)
+    uploaded.seek(0)
+    if not header.startswith(b"SQLite format 3"):
+        return jsonify({"error": "not a valid SQLite database file"}), 400
 
-    # Get or create the user
-    row = conn.execute(
-        "SELECT id FROM users WHERE username = ? COLLATE NOCASE", (username,)
-    ).fetchone()
-    if row:
-        new_uid = row["id"]
-    else:
-        cur = conn.execute("INSERT INTO users (username) VALUES (?)", (username,))
-        conn.commit()
-        new_uid = cur.lastrowid
+    # Write to a temp path first, then atomically swap into place
+    tmp_path = DB + ".import_tmp"
+    try:
+        uploaded.save(tmp_path)
+        os.replace(tmp_path, DB)  # atomic on POSIX; best-effort on Windows
+    except Exception as exc:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        return jsonify({"error": str(exc)}), 500
 
-    # Wipe existing data for this user
-    conn.execute(
-        "DELETE FROM task_logs WHERE task_id IN (SELECT id FROM tasks WHERE user_id = ?)", (new_uid,))
-    conn.execute("DELETE FROM matrix_timers WHERE user_id = ?", (new_uid,))
-    conn.execute("DELETE FROM tasks WHERE user_id = ?", (new_uid,))
-    conn.execute(
-        "DELETE FROM habit_completions WHERE habit_id IN (SELECT id FROM habits WHERE user_id = ?)", (new_uid,))
-    conn.execute("DELETE FROM habits WHERE user_id = ?", (new_uid,))
-    conn.execute("DELETE FROM goals WHERE user_id = ?", (new_uid,))
-    conn.execute("DELETE FROM time_logs WHERE user_id = ?", (new_uid,))
-    conn.commit()
+    # Run schema migrations so any new columns are added to the restored DB
+    try:
+        _init_db()
+    except Exception:
+        pass
 
-    # Tasks (map old ID → new ID for foreign-key children)
-    task_id_map = {}
-    for t in data.get("tasks", []):
-        cur = conn.execute(
-            """INSERT INTO tasks
-                 (title, priority, deadline, completed, created_at, completed_at,
-                  urgent, important, category, estimated_minutes, task_type, chapter, user_id)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (t["title"], t.get("priority", "medium"), t.get("deadline"),
-             t.get("completed", 0), t.get("created_at"), t.get("completed_at"),
-             t.get("urgent", 0), t.get("important", 0), t.get("category", ""),
-             t.get("estimated_minutes", 0), t.get("task_type", ""), t.get("chapter", ""),
-             new_uid),
-        )
-        task_id_map[t["id"]] = cur.lastrowid
-    conn.commit()
-
-    for tl in data.get("task_logs", []):
-        new_tid = task_id_map.get(tl["task_id"])
-        if new_tid:
-            conn.execute(
-                "INSERT INTO task_logs (task_id, duration_minutes, logged_at) VALUES (?,?,?)",
-                (new_tid, tl["duration_minutes"], tl.get("logged_at")),
-            )
-    conn.commit()
-
-    # Habits
-    habit_id_map = {}
-    for h in data.get("habits", []):
-        cur = conn.execute(
-            "INSERT INTO habits (name, created_at, active, user_id) VALUES (?,?,?,?)",
-            (h["name"], h.get("created_at"), h.get("active", 1), new_uid),
-        )
-        habit_id_map[h["id"]] = cur.lastrowid
-    conn.commit()
-
-    for hc in data.get("habit_completions", []):
-        new_hid = habit_id_map.get(hc["habit_id"])
-        if new_hid:
-            try:
-                conn.execute(
-                    """INSERT INTO habit_completions
-                         (habit_id, completion_date, duration_minutes, check_count)
-                       VALUES (?,?,?,?)""",
-                    (new_hid, hc["completion_date"],
-                     hc.get("duration_minutes", 0), hc.get("check_count", 1)),
-                )
-            except sqlite3.IntegrityError:
-                pass  # duplicate date, skip
-    conn.commit()
-
-    for g in data.get("goals", []):
-        conn.execute(
-            """INSERT INTO goals
-                 (title, target_value, current_value, unit, deadline, created_at, user_id)
-               VALUES (?,?,?,?,?,?,?)""",
-            (g["title"], float(g["target_value"]), float(g.get("current_value", 0)),
-             g.get("unit", ""), g.get("deadline"), g.get("created_at"), new_uid),
-        )
-    conn.commit()
-
-    for tl in data.get("time_logs", []):
-        conn.execute(
-            """INSERT INTO time_logs
-                 (activity, category, duration_minutes, log_date, notes, user_id)
-               VALUES (?,?,?,?,?,?)""",
-            (tl["activity"], tl.get("category", "general"), tl["duration_minutes"],
-             tl.get("log_date"), tl.get("notes"), new_uid),
-        )
-    conn.commit()
-    conn.close()
-
-    return jsonify({"ok": True, "username": username})
+    return jsonify({"ok": True})
 
 
 # ── Index ─────────────────────────────────────────────────────────────────────
