@@ -47,13 +47,12 @@
 
   /* Theme-aware surfaces (sidebar, logo glow, filter chips, on-accent text) */
   --glass-tint: 255, 255, 255;
-  --glass-alpha: 0.42;
-  --glass-blur: 32px;
-  --glass-saturation: 200%;
-  --glass-brightness: 1.06;
+  --glass-alpha: 0.45;
+  --glass-blur: 22px;
+  --glass-saturation: 180%;
   --sidebar-bg: rgba(var(--glass-tint), var(--glass-alpha));
 
-  /* ── Real liquid glass primitives ── */
+  /* ── Real liquid glass primitives (perf-tuned) ── */
   --glass-rim: rgba(255, 255, 255, 0.55);
   --glass-rim-soft: rgba(255, 255, 255, 0.30);
   --glass-highlight: linear-gradient(
@@ -63,14 +62,13 @@
     rgba(255, 255, 255, 0.0)  55%,
     rgba(0, 0, 0, 0.03)       100%
   );
+  /* Compact 4-layer shadow — keep top rim + 3 outer for depth, drop verticals */
   --glass-shadow:
-    inset 0 1px 0   rgba(255, 255, 255, 0.55),
-    inset 0 -1px 1px rgba(20, 20, 40, 0.05),
-    inset 1px 0 0  rgba(255, 255, 255, 0.18),
-    inset -1px 0 0 rgba(20, 20, 40, 0.03),
-    0 1px 2px    rgba(20, 20, 40, 0.04),
-    0 10px 28px  rgba(20, 20, 40, 0.10),
-    0 24px 60px  rgba(20, 20, 40, 0.07);
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba(20, 20, 40, 0.04),
+    0 8px 24px rgba(20, 20, 40, 0.09),
+    0 20px 48px rgba(20, 20, 40, 0.06);
+  --glass-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
   --sidebar-border: rgba(20, 20, 40, 0.07);
   --logo-glow-1: rgba(13, 158, 184, 0.18);
   --logo-glow-2: rgba(107, 86, 240, 0.22);
@@ -132,8 +130,7 @@
   --muted: #6060a0;
 
   --glass-tint: 18, 18, 26;
-  --glass-alpha: 0.36;
-  --glass-brightness: 1.10;
+  --glass-alpha: 0.40;
   --sidebar-bg: rgba(var(--glass-tint), var(--glass-alpha));
 
   --glass-rim: rgba(255, 255, 255, 0.18);
@@ -146,13 +143,10 @@
     rgba(0, 0, 0, 0.10)       100%
   );
   --glass-shadow:
-    inset 0 1px 0  rgba(255, 255, 255, 0.22),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.18),
-    inset 1px 0 0  rgba(255, 255, 255, 0.06),
-    inset -1px 0 0 rgba(0, 0, 0, 0.08),
-    0 1px 2px    rgba(0, 0, 0, 0.18),
-    0 12px 30px  rgba(0, 0, 0, 0.30),
-    0 28px 72px  rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 10px 26px rgba(0, 0, 0, 0.28),
+    0 24px 60px rgba(0, 0, 0, 0.20);
   --sidebar-border: rgba(255,255,255,0.06);
   --logo-glow-1: rgba(106,247,200,0.45);
   --logo-glow-2: rgba(124,106,247,0.5);
@@ -194,8 +188,8 @@ body {
 .sidebar {
   width: var(--sidebar-w);
   background: var(--glass-highlight), var(--sidebar-bg);
-  backdrop-filter: blur(40px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(40px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border-right: 1px solid var(--glass-rim);
   display: flex;
   flex-direction: column;
@@ -205,17 +199,16 @@ body {
   z-index: 10;
   gap: 18px;
   box-shadow:
-    inset 1px 0 0  rgba(255,255,255,0.55),
-    inset 0 1px 0  rgba(255,255,255,0.60),
-    inset -1px 0 0 rgba(20,20,40,0.04),
-    4px 0 24px rgba(20,20,40,0.04);
+    inset 0 1px 0 rgba(255,255,255,0.55),
+    4px 0 24px rgba(20,20,40,0.05);
+  /* Promote to its own GPU layer — sidebar is always visible, sticky on screen */
+  will-change: backdrop-filter;
+  transform: translateZ(0);
 }
 [data-theme="dark"] .sidebar {
   box-shadow:
-    inset 1px 0 0  rgba(255,255,255,0.10),
-    inset 0 1px 0  rgba(255,255,255,0.14),
-    inset -1px 0 0 rgba(0,0,0,0.15),
-    4px 0 28px rgba(0,0,0,0.18);
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    4px 0 28px rgba(0,0,0,0.20);
 }
 
 .logo {
@@ -345,8 +338,10 @@ nav { display: flex; flex-direction: column; gap: 18px; position: relative; }
   border: 1px solid var(--glass-rim);
   border-radius: 999px;
   box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  will-change: backdrop-filter;
+  transform: translateZ(0);
 }
 .sidebar-user-name {
   flex: 1;
@@ -625,8 +620,8 @@ h1 {
   background-image: var(--glass-highlight), var(--banner-bg);
   background-color: var(--surface);
   border: 1px solid var(--banner-border);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   box-shadow: var(--glass-shadow);
   animation: bannerIn 0.6s cubic-bezier(0.4,0,0.2,1) backwards;
   border-radius: var(--radius);
@@ -707,8 +702,8 @@ h2 {
 .card {
   position: relative;
   background: var(--glass-highlight), var(--surface);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: 1px solid var(--glass-rim);
   border-radius: var(--radius);
   padding: 20px;
@@ -919,9 +914,9 @@ h2 {
 .item-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 
 .item-list li {
+  /* No backdrop-filter on list items — would be O(n) compositor cost.
+     The translucent surface + highlight gradient already reads as glass. */
   background: var(--glass-highlight), var(--surface);
-  backdrop-filter: blur(20px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
   border: 1px solid var(--glass-rim);
   border-radius: var(--radius);
   padding: 13px 16px;
@@ -929,9 +924,12 @@ h2 {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  box-shadow: var(--glass-shadow);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.45),
+    0 1px 2px rgba(20,20,40,0.04),
+    0 6px 16px rgba(20,20,40,0.06);
   transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
-  contain: layout style;
+  contain: layout style paint;
 }
 .item-list li:not(.done):hover {
   border-color: var(--accent);
@@ -1112,8 +1110,8 @@ h2 {
 .matrix-quadrant {
   background-color: var(--surface);
   background-image: var(--glass-highlight);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: 1px solid var(--glass-rim);
   border-radius: var(--radius);
   padding: 16px;
@@ -1122,6 +1120,7 @@ h2 {
   gap: 8px;
   min-height: 220px;
   box-shadow: var(--glass-shadow);
+  contain: layout style paint;
 }
 .q1 {
   border-top: 3px solid var(--red);
@@ -1166,6 +1165,7 @@ h2 {
 .matrix-task-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
 
 .matrix-task {
+  /* No backdrop-filter — parent quadrant already supplies the blur composite */
   background: var(--glass-highlight), var(--surface2);
   border: 1px solid var(--glass-rim-soft);
   border-radius: 8px;
@@ -1182,6 +1182,7 @@ h2 {
     inset 0 1px 0 rgba(255,255,255,0.30),
     0 1px 2px rgba(20,20,40,0.04);
   transition: border-color 0.15s;
+  contain: layout style paint;
 }
 .matrix-task:not(.done):hover { border-color: var(--accent); }
 
@@ -1807,9 +1808,9 @@ body.drag-selecting * { cursor: crosshair !important; }
 .edit-sheet.open .edit-sheet-backdrop { opacity: 1; }
 .edit-sheet-panel {
   position: relative;
-  background: var(--glass-highlight), rgba(var(--glass-tint), 0.66);
-  backdrop-filter: blur(44px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(44px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  background: var(--glass-highlight), rgba(var(--glass-tint), 0.62);
+  backdrop-filter: blur(28px) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(28px) saturate(var(--glass-saturation));
   border: 1px solid var(--glass-rim);
   border-radius: var(--radius);
   width: min(520px, calc(100% - 32px));
@@ -1871,8 +1872,8 @@ body.drag-selecting * { cursor: crosshair !important; }
   background:
     var(--glass-highlight),
     linear-gradient(180deg, var(--surface) 0%, var(--surface2) 100%);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: 1px solid rgba(var(--accent-rgb), 0.35);
   border-left: 3px solid var(--accent);
   border-radius: var(--radius);
@@ -2114,8 +2115,8 @@ body.drag-selecting * { cursor: crosshair !important; }
   position: fixed;
   z-index: 9999;
   background: var(--glass-highlight), rgba(var(--glass-tint), 0.66);
-  backdrop-filter: blur(36px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(36px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: 1px solid var(--glass-rim);
   border-radius: 14px;
   box-shadow: var(--glass-shadow);
@@ -2378,9 +2379,9 @@ body.drag-selecting * { cursor: crosshair !important; }
 }
 .auth-card {
   width: 100%; max-width: 380px;
-  background: var(--glass-highlight), rgba(var(--glass-tint), 0.66);
-  backdrop-filter: blur(44px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
-  -webkit-backdrop-filter: blur(44px) saturate(var(--glass-saturation)) brightness(var(--glass-brightness));
+  background: var(--glass-highlight), rgba(var(--glass-tint), 0.62);
+  backdrop-filter: blur(28px) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(28px) saturate(var(--glass-saturation));
   border: 1px solid var(--glass-rim);
   border-radius: 20px; padding: 30px 26px 26px;
   box-shadow: var(--glass-shadow);
@@ -2553,6 +2554,61 @@ body.drag-selecting * { cursor: crosshair !important; }
   text-align: center;
   padding: 6px;
 }
+
+/* ── Auth backup section ── */
+.auth-backup { margin-top: 14px; }
+
+.auth-backup-divider {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.auth-backup-divider::before,
+.auth-backup-divider::after {
+  content: ''; flex: 1;
+  height: 1px; background: var(--border-soft);
+}
+.auth-backup-divider span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--muted); text-transform: uppercase;
+}
+
+.auth-backup-row {
+  display: flex; gap: 6px;
+}
+
+.auth-backup-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center;
+  gap: 5px; padding: 6px 10px;
+  background: var(--surface2); border: 1px solid var(--border-soft);
+  border-radius: 8px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--muted); letter-spacing: 0.04em;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.auth-backup-btn:hover {
+  color: var(--accent); background: var(--accent-dim);
+  border-color: rgba(var(--accent-rgb), 0.3);
+}
+.auth-backup-btn:active { transform: scale(0.97); }
+
+.auth-backup-hint {
+  margin: 6px 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; color: var(--muted); text-align: center;
+  letter-spacing: 0.02em; line-height: 1.5;
+}
+
+/* ── Sidebar export button (when logged in) ── */
+.sidebar-export {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0;
+  background: none; border: none; border-radius: 7px; cursor: pointer;
+  color: var(--muted);
+  transition: color 0.15s, background 0.15s;
+}
+.sidebar-export:hover { color: var(--accent); background: var(--accent-dim); }
+.sidebar-export:active { transform: scale(0.93); }
 
 body.auth-visible { overflow: hidden; }
 body.auth-visible .sidebar,

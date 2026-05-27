@@ -2627,6 +2627,55 @@ async function handleLogout() {
   showAuthOverlay();
 }
 
+// ── Backup / restore ──────────────────────────────────────────────────────────
+
+async function exportBackup(username) {
+  const url = `/api/backup/export${username ? `?username=${encodeURIComponent(username)}` : ""}`;
+  let res;
+  try { res = await fetch(url); } catch (e) { toast("Export failed — network error"); return; }
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    toast(d.error || "Export failed");
+    return;
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get("Content-Disposition") || "";
+  const m = cd.match(/filename="?([^"]+)"?/);
+  const filename = m ? m[1] : "hypercube_backup.json";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast("Backup downloaded");
+}
+
+async function importBackup(file) {
+  if (!file) return;
+  let text, data;
+  try { text = await file.text(); data = JSON.parse(text); } catch (e) { toast("Invalid JSON file"); return; }
+  if (!data.version || !data.username) { toast("Unrecognised backup format"); return; }
+  if (!confirm(`Import backup for "${data.username}"?\nThis replaces all existing data for that user.`)) return;
+  let res;
+  try {
+    res = await fetch("/api/backup/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: text,
+    });
+  } catch (e) { toast("Import failed — network error"); return; }
+  const result = await res.json().catch(() => ({}));
+  if (res.ok) {
+    toast(`Restored — sign in as ${result.username}`);
+    const inp = $("#auth-username");
+    if (inp) { inp.value = result.username; inp.focus(); }
+  } else {
+    toast(result.error || "Import failed");
+  }
+}
+
 function wireAuthUI() {
   // Tab switching
   $$(".auth-tab").forEach(t => t.addEventListener("click", () => setAuthMode(t.dataset.mode)));
@@ -2680,6 +2729,34 @@ function wireAuthUI() {
       del.disabled = false;
     }
   });
+  // Export backup (login page — uses typed username)
+  const exportBtn = $("#export-backup-btn");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", () => {
+      const username = ($("#auth-username")?.value || "").trim();
+      if (!username) { toast("Enter your username first"); $("#auth-username")?.focus(); return; }
+      exportBackup(username);
+    });
+  }
+
+  // Import backup (login page — file picker)
+  const importInput = $("#import-backup-input");
+  if (importInput) {
+    importInput.addEventListener("change", () => {
+      if (importInput.files[0]) importBackup(importInput.files[0]);
+      importInput.value = ""; // reset so same file can be re-picked
+    });
+  }
+
+  // Export from sidebar (when already logged in)
+  const exportNowBtn = $("#export-now-btn");
+  if (exportNowBtn) {
+    exportNowBtn.addEventListener("click", () => {
+      const name = ($("#sidebar-user-name")?.textContent || "").trim();
+      exportBackup(name);
+    });
+  }
+
   setAuthMode("login");
 }
 
