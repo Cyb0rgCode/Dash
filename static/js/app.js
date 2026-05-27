@@ -2725,6 +2725,11 @@ function wireAuthUI() {
       del.disabled = false;
     }
   });
+  // Theme toggle on the login card — delegates to the main toggle button
+  // (which handles chart teardown and meta-color sync as well)
+  const authThemeBtn = $("#auth-theme-toggle");
+  if (authThemeBtn) authThemeBtn.addEventListener("click", () => $("#theme-toggle")?.click());
+
   // Export backup — downloads the full .db file (no username needed)
   const exportBtn = $("#export-backup-btn");
   if (exportBtn) exportBtn.addEventListener("click", exportBackup);
