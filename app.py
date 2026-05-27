@@ -121,22 +121,31 @@ def _tg_send_backup(caption: str = "📦 Backup"):
 
 
 def _tg_register_webhook():
-    """Tell Telegram where to POST incoming messages (runs on startup)."""
+    """Tell Telegram where to POST incoming messages and register commands (runs on startup)."""
     token      = os.environ.get("TELEGRAM_TOKEN", "")
     render_url = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
     if not token or not render_url:
         return
-    webhook_url = f"{render_url}/api/telegram/webhook"
     try:
         import requests as _r
+        # Register webhook URL
+        webhook_url = f"{render_url}/api/telegram/webhook"
         _r.post(
             f"https://api.telegram.org/bot{token}/setWebhook",
             json={"url": webhook_url},
             timeout=10,
         )
-        app.logger.info("Telegram webhook registered: %s", webhook_url)
+        # Register commands so Telegram shows the / autocomplete menu
+        _r.post(
+            f"https://api.telegram.org/bot{token}/setMyCommands",
+            json={"commands": [
+                {"command": "backup", "description": "Send an instant database backup"},
+            ]},
+            timeout=10,
+        )
+        app.logger.info("Telegram webhook + commands registered: %s", webhook_url)
     except Exception as exc:
-        app.logger.warning("Telegram webhook registration failed: %s", exc)
+        app.logger.warning("Telegram registration failed: %s", exc)
 
 
 def _start_scheduler():
