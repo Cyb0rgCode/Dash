@@ -2386,12 +2386,13 @@ body.drag-selecting * { cursor: crosshair !important; }
   border-radius: 20px; padding: 30px 26px 26px;
   box-shadow: var(--glass-shadow);
 }
-/* Positions the login-page theme toggle at the same spot as the sidebar-user pill */
+/* Positions the login-page theme toggle at the same spot as the sidebar-user pill.
+   Must be a direct child of #auth-overlay (not .auth-card) to avoid the
+   backdrop-filter stacking context trapping fixed/absolute positioning. */
 .auth-theme-btn {
-  position: fixed;
+  position: absolute;
   top: max(18px, env(safe-area-inset-top));
   right: 24px;
-  z-index: 10000;
 }
 
 .auth-brand {
