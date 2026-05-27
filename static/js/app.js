@@ -2070,6 +2070,42 @@ document.addEventListener('keydown', e => {
   if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); _doRedo(); }
 });
 
+// ── Mobile edge-swipe: left-edge → undo, right-edge → redo ───────────────────
+// Trigger zone: 36 px from each screen edge.  Min swipe: 72 px horizontal,
+// less than 80 px vertical drift (keeps it from hijacking scroll).
+(function _wireSwipeUndoRedo() {
+  const EDGE   = 36;   // px from screen edge to start the gesture
+  const MIN_DX = 72;   // minimum horizontal travel
+  const MAX_DY = 80;   // maximum vertical drift before we cancel
+
+  let _touch = null; // { side: 'left'|'right', x0, y0 }
+
+  document.addEventListener('touchstart', e => {
+    // Ignore multi-touch and touches on interactive / draggable elements
+    if (e.touches.length !== 1) { _touch = null; return; }
+    const t   = e.touches[0];
+    const x   = t.clientX;
+    const w   = window.innerWidth;
+    if      (x <= EDGE)     _touch = { side: 'left',  x0: x, y0: t.clientY };
+    else if (x >= w - EDGE) _touch = { side: 'right', x0: x, y0: t.clientY };
+    else                    _touch = null;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (!_touch || e.changedTouches.length !== 1) { _touch = null; return; }
+    const t  = e.changedTouches[0];
+    const dx = t.clientX - _touch.x0;
+    const dy = Math.abs(t.clientY - _touch.y0);
+
+    if (dy > MAX_DY) { _touch = null; return; } // too vertical — likely a scroll
+
+    if (_touch.side === 'left'  &&  dx >  MIN_DX) _doUndo();
+    if (_touch.side === 'right' && -dx >  MIN_DX) _doRedo();
+
+    _touch = null;
+  }, { passive: true });
+})();
+
 // ── Click / timer / double-click ──────────────────────────────────────────────
 
 let matrixPauseHoldTimer = null;
