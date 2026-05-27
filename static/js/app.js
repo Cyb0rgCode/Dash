@@ -1684,11 +1684,14 @@ function saveMatrixOrders(o) { localStorage.setItem("matrix-order", JSON.stringi
 
 function applyQuadrantOrder(listId, tasks) {
   const order = getMatrixOrders()[listId] || [];
-  if (!order.length) return tasks;
-  return [...tasks].sort((a, b) =>
-    (order.indexOf(a.id) < 0 ? 9999 : order.indexOf(a.id)) -
-    (order.indexOf(b.id) < 0 ? 9999 : order.indexOf(b.id))
-  );
+  return [...tasks].sort((a, b) => {
+    // Completed tasks always sink to the bottom of their quadrant
+    if (!!a.completed !== !!b.completed) return a.completed ? 1 : -1;
+    // Within the same completion state, honour the saved drag-drop order
+    const ia = order.indexOf(a.id) < 0 ? 9999 : order.indexOf(a.id);
+    const ib = order.indexOf(b.id) < 0 ? 9999 : order.indexOf(b.id);
+    return ia - ib;
+  });
 }
 
 function captureOrder(listEl) {
