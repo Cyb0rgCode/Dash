@@ -1,9 +1,0 @@
-.git
-.gitignore
-.secret_key
-*.db
-*.pyc
-__pycache__
-.claude
-README.md
-run.py
