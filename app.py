@@ -57,6 +57,138 @@ app.config.update(
 init_db()
 
 
+# ── Telegram backup ───────────────────────────────────────────────────────────
+
+def _tg_snapshot() -> tuple[io.BytesIO, str]:
+    """Create an in-memory SQLite snapshot and return (buf, filename)."""
+    from database import DB as _DB
+    buf = io.BytesIO()
+    fd, tmp = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        src = sqlite3.connect(_DB)
+        bak = sqlite3.connect(tmp)
+        src.backup(bak)
+        bak.close()
+        src.close()
+        with open(tmp, "rb") as f:
+            buf.write(f.read())
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+    buf.seek(0)
+    return buf, f"hypercube_{date.today()}.db"
+
+
+def _tg_send_message(text: str):
+    token   = os.environ.get("TELEGRAM_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+    try:
+        import requests as _r
+        _r.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": text},
+            timeout=10,
+        )
+    except Exception as exc:
+        app.logger.warning("Telegram message failed: %s", exc)
+
+
+def _tg_send_backup(caption: str = "📦 Backup"):
+    """Send the DB snapshot to the configured Telegram chat."""
+    token   = os.environ.get("TELEGRAM_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        app.logger.warning("Telegram backup skipped — TOKEN or CHAT_ID not set")
+        return
+    try:
+        buf, filename = _tg_snapshot()
+        import requests as _r
+        resp = _r.post(
+            f"https://api.telegram.org/bot{token}/sendDocument",
+            data={"chat_id": chat_id, "caption": caption},
+            files={"document": (filename, buf, "application/octet-stream")},
+            timeout=60,
+        )
+        if not resp.ok:
+            app.logger.error("Telegram sendDocument failed: %s", resp.text)
+    except Exception as exc:
+        app.logger.error("Telegram backup error: %s", exc)
+
+
+def _tg_register_webhook():
+    """Tell Telegram where to POST incoming messages (runs on startup)."""
+    token      = os.environ.get("TELEGRAM_TOKEN", "")
+    render_url = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
+    if not token or not render_url:
+        return
+    webhook_url = f"{render_url}/api/telegram/webhook"
+    try:
+        import requests as _r
+        _r.post(
+            f"https://api.telegram.org/bot{token}/setWebhook",
+            json={"url": webhook_url},
+            timeout=10,
+        )
+        app.logger.info("Telegram webhook registered: %s", webhook_url)
+    except Exception as exc:
+        app.logger.warning("Telegram webhook registration failed: %s", exc)
+
+
+def _start_scheduler():
+    """Start the APScheduler background thread (call once per process)."""
+    token = os.environ.get("TELEGRAM_TOKEN", "")
+    if not token:
+        return
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        sched = BackgroundScheduler(daemon=True)
+        hour  = int(os.environ.get("BACKUP_HOUR", "8"))
+        sched.add_job(
+            lambda: _tg_send_backup("📦 Daily automatic backup"),
+            CronTrigger(hour=hour, minute=0),
+            id="daily_backup",
+            replace_existing=True,
+        )
+        sched.start()
+        app.logger.info("Backup scheduler started — daily at %02d:00 UTC", hour)
+    except Exception as exc:
+        app.logger.warning("Scheduler failed to start: %s", exc)
+
+
+# ── Telegram webhook endpoint ─────────────────────────────────────────────────
+
+@app.route("/api/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    """Receives updates from Telegram. Responds to /backup command."""
+    payload = request.get_json(force=True, silent=True) or {}
+    msg     = payload.get("message") or payload.get("edited_message") or {}
+    chat    = msg.get("chat") or {}
+    text    = (msg.get("text") or "").strip()
+
+    # Only accept messages from the configured chat
+    allowed = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if str(chat.get("id", "")) != allowed:
+        return jsonify({"ok": True})
+
+    cmd = text.split()[0].lower() if text else ""
+    if cmd in ("/backup", "/export"):
+        import threading
+        _tg_send_message("⏳ Generating backup…")
+        threading.Thread(
+            target=_tg_send_backup,
+            args=("📦 Manual backup",),
+            daemon=True,
+        ).start()
+
+    return jsonify({"ok": True})
+
+
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
 USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{2,32}$")

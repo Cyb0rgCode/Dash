@@ -36,3 +36,16 @@ accesslog      = "-"
 errorlog       = "-"
 loglevel       = "info"
 capture_output = True
+
+
+# ── Background tasks ──────────────────────────────────────────────────────────
+# on_starting runs ONCE in the gunicorn master process before workers are forked.
+# With preload_app=True, threads don't survive fork, so the scheduler and the
+# webhook registration only live in the master — exactly what we want.
+def on_starting(server):
+    try:
+        from app import _start_scheduler, _tg_register_webhook
+        _start_scheduler()
+        _tg_register_webhook()
+    except Exception as exc:
+        print(f"[gunicorn] Background tasks startup error: {exc}")
