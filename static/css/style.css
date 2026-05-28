@@ -2228,6 +2228,26 @@ body.drag-selecting * { cursor: crosshair !important; }
   transform: scale(1.015);
   transition: border-color 0.1s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
+/* Completed task hold — cyan glow signals "archive" not "drag" */
+.matrix-task.press-hold.archive-hold {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(var(--cyan-rgb), 0.22), var(--shadow-sm);
+}
+
+/* Archive-hint icon on completed matrix tasks (mobile only) */
+.matrix-archive-hint {
+  display: none;
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  opacity: 0.35;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='1' y='1' width='10' height='3.5' rx='1'/%3E%3Cpath d='M2 4.5v5.5a.7.7 0 0 0 .7.7h6.6a.7.7 0 0 0 .7-.7V4.5' fill='none' stroke='%23000' stroke-width='1.4'/%3E%3Cpath d='M4.5 7.5h3' stroke='%23000' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='1' y='1' width='10' height='3.5' rx='1'/%3E%3Cpath d='M2 4.5v5.5a.7.7 0 0 0 .7.7h6.6a.7.7 0 0 0 .7-.7V4.5' fill='none' stroke='%23000' stroke-width='1.4'/%3E%3Cpath d='M4.5 7.5h3' stroke='%23000' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+@media (max-width: 720px) {
+  .matrix-archive-hint { display: inline-block; }
+}
 
 .matrix-task.dragging {
   opacity: 0.3;

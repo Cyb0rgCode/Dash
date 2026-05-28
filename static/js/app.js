@@ -2020,6 +2020,7 @@ function renderMatrixQuadrant(listId, tasks) {
       ${t.time_logged > 0 ? `<span class="matrix-time-logged">⏱ ${fmtTime(t.time_logged)}</span>` : ''}
       ${t.deadline ? `<span class="item-meta">${t.deadline}</span>` : ''}
       ${canDelegate ? `<button class="matrix-delegate-btn" title="Delegate task" aria-label="Delegate">→</button>` : ''}
+      ${t.completed ? `<span class="matrix-archive-hint" aria-hidden="true" title="Hold to archive"></span>` : ''}
     </li>`;
   }).join("");
 }
@@ -2469,7 +2470,7 @@ function startAutoScroll() {
 
 function cancelLongPress() {
   if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-  touchDragEl?.classList.remove("press-hold");
+  touchDragEl?.classList.remove("press-hold", "archive-hold");
 }
 
 (function wireMatrixTouch() {
@@ -2490,6 +2491,27 @@ function cancelLongPress() {
         try { navigator.vibrate?.(15); } catch (_) {}
         const t = matrixTimers.get(id);
         if (t) t.paused ? resumeMatrixTimer(id) : pauseMatrixTimer(id);
+      }, LONG_PRESS_MS);
+      return; // skip drag setup entirely
+    }
+
+    // ── Completed task: hold = archive (drag disabled for done tasks) ──
+    const taskForHold = matrixTasks.find(t => t.id === id);
+    if (taskForHold?.completed) {
+      touchDragEl = li;  // lets cancelLongPress / onTouchEnd clean up the class
+      li.classList.add("press-hold", "archive-hold");
+      longPressTimer = setTimeout(async () => {
+        longPressTimer = null;
+        li.classList.remove("press-hold", "archive-hold");
+        touchDragEl = null;
+        try { navigator.vibrate?.([10, 40, 20]); } catch (_) {}
+        await api(`/api/tasks/${id}`, "PUT", { archived: true });
+        _pushUndo(`Archive "${taskForHold.title}"`,
+          async () => { await api(`/api/tasks/${id}`, "PUT", { archived: false }); loadMatrix(); },
+          async () => { await api(`/api/tasks/${id}`, "PUT", { archived: true  }); loadMatrix(); }
+        );
+        toast(`Archived "${taskForHold.title}"`);
+        loadMatrix();
       }, LONG_PRESS_MS);
       return; // skip drag setup entirely
     }
@@ -2572,7 +2594,7 @@ function cancelLongPress() {
 
     removeDropLine();
     touchClone?.remove();                                        touchClone  = null;
-    touchDragEl?.classList.remove("dragging", "press-hold");    touchDragEl = null;
+    touchDragEl?.classList.remove("dragging", "press-hold", "archive-hold");    touchDragEl = null;
     $$(".matrix-quadrant.drag-over").forEach(el => el.classList.remove("drag-over"));
     touchDragId = null; touchActive = false; touchOverQ = null; touchDragSourceId = null;
 
