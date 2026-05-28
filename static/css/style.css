@@ -2361,6 +2361,24 @@ body.drag-selecting * { cursor: crosshair !important; }
   transform: scale(0.94); transition-duration: 0.08s;
 }
 
+/* ── Undo / redo slide-nudge (mobile only, applied via JS) ── */
+/* Undo  → nudge right  (mirroring the left-edge-swipe gesture)  */
+/* Redo  → nudge left   (mirroring the right-edge-swipe gesture) */
+@keyframes undo-nudge {
+  0%   { transform: translateX(0);     }
+  35%  { transform: translateX(22px);  }
+  65%  { transform: translateX(-5px);  }
+  100% { transform: translateX(0);     }
+}
+@keyframes redo-nudge {
+  0%   { transform: translateX(0);     }
+  35%  { transform: translateX(-22px); }
+  65%  { transform: translateX(5px);   }
+  100% { transform: translateX(0);     }
+}
+.content.anim-undo { animation: undo-nudge 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.content.anim-redo { animation: redo-nudge 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
 /* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

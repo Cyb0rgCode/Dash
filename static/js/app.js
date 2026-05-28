@@ -2110,9 +2110,21 @@ function _pushUndo(label, undoFn, redoFn) {
   _updateUndoRedoBtns();
 }
 
+// Slide-nudge feedback on mobile (left = undo direction, right = redo direction)
+function _playUndoRedoAnim(dir) {
+  if (window.innerWidth > 720) return;
+  const el = document.querySelector('.content');
+  if (!el) return;
+  el.classList.remove('anim-undo', 'anim-redo');
+  void el.offsetWidth; // force reflow so removing+re-adding the class restarts the animation
+  el.classList.add(dir === 'undo' ? 'anim-undo' : 'anim-redo');
+  el.addEventListener('animationend', () => el.classList.remove('anim-undo', 'anim-redo'), { once: true });
+}
+
 async function _doUndo() {
   const a = _undoStack.pop();
   if (!a) { toast("Nothing to undo"); return; }
+  _playUndoRedoAnim('undo');
   await a.undo();
   _redoStack.push(a);
   toast(`↩ ${a.label}`);
@@ -2122,6 +2134,7 @@ async function _doUndo() {
 async function _doRedo() {
   const a = _redoStack.pop();
   if (!a) { toast("Nothing to redo"); return; }
+  _playUndoRedoAnim('redo');
   await a.redo();
   _undoStack.push(a);
   toast(`↪ ${a.label}`);
