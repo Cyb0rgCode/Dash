@@ -1612,6 +1612,21 @@ h2 {
   .content { padding: calc(28px + env(safe-area-inset-top)) 10px calc(74px + env(safe-area-inset-bottom)) 10px; }
 }
 
+/* ── iOS PWA (standalone) — anchor dock flush to bottom like a native tab bar ── */
+/* In standalone the browser chrome is gone; extend the dock to cover the home   */
+/* indicator area so it looks native instead of floating 40 px above the edge.   */
+@media (display-mode: standalone) and (max-width: 720px) {
+  .sidebar {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 20px 20px 0 0;
+    border-bottom: none;
+    /* Push nav buttons above the home indicator bar */
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+}
+
 /* ── Forecast badge (dashboard chart labels) ── */
 .forecast-badge {
   font-size: 10px;
