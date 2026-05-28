@@ -440,10 +440,17 @@ def _task_delegation_info(conn, task):
 @require_user
 def get_tasks(uid):
     conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM tasks WHERE user_id = ? ORDER BY completed ASC, priority DESC, created_at DESC",
-        (uid,),
-    ).fetchall()
+    show_archived = request.args.get("archived", "0") == "1"
+    if show_archived:
+        rows = conn.execute(
+            "SELECT * FROM tasks WHERE user_id = ? AND archived = 1 ORDER BY archived_at DESC, created_at DESC",
+            (uid,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM tasks WHERE user_id = ? AND archived = 0 ORDER BY completed ASC, priority DESC, created_at DESC",
+            (uid,),
+        ).fetchall()
     tasks = []
     for row in rows:
         task = dict(row)
@@ -455,6 +462,28 @@ def get_tasks(uid):
         tasks.append(task)
     conn.close()
     return jsonify(tasks)
+
+
+@app.route("/api/tasks/auto-archive", methods=["POST"])
+@require_user
+def auto_archive_tasks(uid):
+    """Archive all completed tasks whose completed_at is older than `days` days."""
+    days = int((request.json or {}).get("days", 7))
+    if days < 1:
+        return jsonify({"archived": 0})
+    cutoff = str(date.today() - timedelta(days=days))
+    conn = get_db()
+    cur = conn.execute(
+        """UPDATE tasks
+           SET archived = 1, archived_at = date('now')
+           WHERE user_id = ? AND completed = 1 AND archived = 0
+             AND completed_at IS NOT NULL AND completed_at <= ?""",
+        (uid, cutoff),
+    )
+    count = cur.rowcount
+    conn.commit()
+    conn.close()
+    return jsonify({"archived": count})
 
 
 @app.route("/api/tasks/<int:task_id>/log", methods=["POST"])
@@ -871,6 +900,12 @@ def update_task(uid, task_id):
         conn.execute("UPDATE tasks SET task_type = ? WHERE id = ?", (data.get("task_type", ""), task_id))
     if "chapter" in data:
         conn.execute("UPDATE tasks SET chapter = ? WHERE id = ?", (data.get("chapter", ""), task_id))
+    if "archived" in data:
+        archived_at = str(date.today()) if data["archived"] else None
+        conn.execute(
+            "UPDATE tasks SET archived = ?, archived_at = ? WHERE id = ?",
+            (int(bool(data["archived"])), archived_at, task_id),
+        )
     conn.commit()
     row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     conn.close()

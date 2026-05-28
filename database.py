@@ -113,6 +113,8 @@ def init_db():
             ("user_id",           "INTEGER"),
             ("delegation_id",     "INTEGER"),   # set on received copies
             ("delegated_out",     "INTEGER"),   # set on tasks you delegated away
+            ("archived",          "INTEGER NOT NULL DEFAULT 0"),
+            ("archived_at",       "TEXT"),
         ],
         "habits":    [("user_id", "INTEGER")],
         "habit_completions": [

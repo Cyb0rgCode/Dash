@@ -2572,6 +2572,46 @@ body.drag-selecting * { cursor: crosshair !important; }
   padding: 6px;
 }
 
+/* ── Archive settings row (shown when Archive filter is active) ── */
+.archive-settings {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 14px;
+  margin-bottom: 8px;
+  background: rgba(var(--accent-rgb), 0.06);
+  border: 1px solid rgba(var(--accent-rgb), 0.14);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.archive-settings svg { opacity: 0.7; flex-shrink: 0; }
+.archive-settings label { cursor: default; }
+.archive-days-input {
+  width: 56px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+}
+.archive-days-input:focus { outline: 2px solid rgba(var(--accent-rgb), 0.5); }
+
+/* Archive / unarchive icon buttons on task rows */
+.btn-archive,
+.btn-unarchive {
+  opacity: 0.55;
+  transition: opacity 0.15s, color 0.15s;
+}
+.btn-archive:hover  { opacity: 1; color: var(--accent); }
+.btn-unarchive:hover { opacity: 1; color: var(--cyan); }
+
+/* Archived-date chip inside archive view */
+.archive-date { font-style: italic; opacity: 0.7; }
+
 /* ── Auth backup section ── */
 .auth-backup { margin-top: 14px; }
 

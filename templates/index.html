@@ -303,6 +303,13 @@
         <button class="filter-btn active" data-filter="all">All</button>
         <button class="filter-btn" data-filter="pending">Pending</button>
         <button class="filter-btn" data-filter="done">Done</button>
+        <button class="filter-btn" data-filter="archive">Archive</button>
+      </div>
+      <div id="archive-settings" class="archive-settings" hidden>
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="1" width="14" height="5" rx="1.5"/><path d="M2 6v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6"/><path d="M6 10h4"/></svg>
+        <label for="auto-archive-days">Auto-archive done tasks after</label>
+        <input type="number" id="auto-archive-days" class="archive-days-input" min="0" max="365" value="0" />
+        <span>days &nbsp;<small>(0 = off)</small></span>
       </div>
       <ul id="task-list" class="item-list"></ul>
     </section>

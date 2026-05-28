@@ -565,28 +565,59 @@ function refreshTaskDatalists() {
 }
 
 async function loadTasks() {
-  allTasks = await api("/api/tasks");
-  refreshTaskDatalists();
+  if (taskFilter === "archive") {
+    allTasks = await api("/api/tasks?archived=1");
+  } else {
+    allTasks = await api("/api/tasks");
+    refreshTaskDatalists();
+    const autoArchived = await _checkAutoArchive();
+    if (autoArchived > 0) allTasks = await api("/api/tasks"); // reload after auto-archive
+  }
   renderTasks();
+}
+
+async function _checkAutoArchive() {
+  const days = parseInt(localStorage.getItem("autoArchiveDays") || "0", 10);
+  if (!days || days < 1) return 0;
+  const result = await api("/api/tasks/auto-archive", "POST", { days });
+  const count = result?.archived || 0;
+  if (count > 0) toast(`Archived ${count} completed task${count > 1 ? "s" : ""} (${days}d)`);
+  return count;
 }
 
 function renderTasks() {
   const list = $("#task-list");
+  const isArchive = taskFilter === "archive";
 
-  // Live page subtitle — counts reflect ALL tasks, not just the filtered set
+  // Show/hide task-form, import-row, archive-settings based on filter
+  const taskForm       = document.getElementById("task-form");
+  const importRow      = document.querySelector("#tab-tasks .import-row");
+  const archiveSettings = document.getElementById("archive-settings");
+  if (taskForm)        taskForm.hidden       = isArchive;
+  if (importRow)       importRow.hidden      = isArchive;
+  if (archiveSettings) archiveSettings.hidden = !isArchive;
+
+  // Live page subtitle
   const meta = $("#tasks-meta");
   if (meta) {
-    const todayStr = today();
-    const pending  = allTasks.filter(t => !t.completed).length;
-    const doneToday = allTasks.filter(t => t.completed && t.completed_at === todayStr).length;
-    if (!allTasks.length) meta.textContent = "Nothing here yet — add a task to get started";
-    else if (pending === 0) meta.textContent = `All clear · ${allTasks.length} archived`;
-    else meta.textContent = `${pending} pending${doneToday ? ` · ${doneToday} done today` : ""}`;
+    if (isArchive) {
+      meta.textContent = allTasks.length
+        ? `${allTasks.length} archived task${allTasks.length !== 1 ? "s" : ""}`
+        : "Archive is empty";
+    } else {
+      const todayStr = today();
+      const pending   = allTasks.filter(t => !t.completed).length;
+      const doneToday = allTasks.filter(t => t.completed && t.completed_at === todayStr).length;
+      if (!allTasks.length) meta.textContent = "Nothing here yet — add a task to get started";
+      else if (pending === 0) meta.textContent = "All done — no pending tasks";
+      else meta.textContent = `${pending} pending${doneToday ? ` · ${doneToday} done today` : ""}`;
+    }
   }
 
   let tasks = allTasks;
   if (taskFilter === "pending") tasks = tasks.filter(t => !t.completed);
-  if (taskFilter === "done") tasks = tasks.filter(t => t.completed);
+  if (taskFilter === "done")    tasks = tasks.filter(t =>  t.completed);
+  // archive filter: allTasks already contains only archived tasks (loaded with ?archived=1)
 
   // Search by title (case-insensitive substring match)
   const q = taskSearch.trim().toLowerCase();
@@ -596,7 +627,13 @@ function renderTasks() {
     const hint = q                          ? "No tasks match your search."
               : taskFilter === "done"       ? "Complete tasks will appear here."
               : taskFilter === "pending"    ? "All caught up — no pending tasks."
-              :                                "Add a task above or import a JSON list to get started.";
+              : taskFilter === "archive"    ? "Archive completed tasks to keep your workspace clean."
+              :                               "Add a task above or import a JSON list to get started.";
+    const title = q                         ? "No matches"
+              : taskFilter === "done"       ? "Nothing done yet"
+              : taskFilter === "pending"    ? "Inbox zero"
+              : taskFilter === "archive"    ? "Archive is empty"
+              :                               "No tasks yet";
     list.innerHTML = `<li class="empty-state">
       <div class="empty-state-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -604,7 +641,7 @@ function renderTasks() {
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
         </svg>
       </div>
-      <div class="empty-state-title">${q ? "No matches" : taskFilter === "done" ? "Nothing done yet" : taskFilter === "pending" ? "Inbox zero" : "No tasks yet"}</div>
+      <div class="empty-state-title">${title}</div>
       <div class="empty-state-hint">${hint}</div>
     </li>`;
     updateBatchBar();
@@ -686,11 +723,15 @@ function renderTasks() {
           ${t.important ? '<span class="tag-important">★ key</span>' : ""}
           <span class="badge badge-${t.priority}">${t.priority}</span>
           ${t.deadline ? `<span class="item-meta${isOverdue ? " overdue-meta" : ""}">${isOverdue ? "⚠ " : ""}${t.deadline}</span>` : ""}
+          ${isArchive && t.archived_at ? `<span class="item-meta archive-date">⊡ ${t.archived_at}</span>` : ""}
           ${t.estimated_minutes ? `<span class="estimate-badge">~${fmtTime(t.estimated_minutes)}</span>` : ""}
           ${t.time_logged ? `<span class="time-badge">⏱ ${fmtTime(t.time_logged)}</span>` : ""}
-          <input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />
-          <button class="btn-icon" data-action="edit" title="Edit">✎</button>
-          <button class="btn-icon" data-action="delete" title="Delete">✕</button>
+          ${!isArchive ? `<input class="log-mins-inline" type="number" placeholder="log min" min="1" max="999" title="Type minutes and press Enter" />` : ""}
+          ${!isArchive ? `<button class="btn-icon" data-action="edit" title="Edit">✎</button>` : ""}
+          ${!isArchive ? `<button class="btn-icon" data-action="delete" title="Delete">✕</button>` : ""}
+          ${!isArchive && t.completed ? `<button class="btn-icon btn-archive" data-action="archive" title="Move to archive"><svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="12" height="4" rx="1"/><path d="M2 5v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5"/><path d="M5 8h4"/></svg></button>` : ""}
+          ${isArchive ? `<button class="btn-icon btn-unarchive" data-action="unarchive" title="Restore from archive"><svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="12" height="4" rx="1"/><path d="M2 5v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5"/><path d="M7 11V8m-2 1.5 2-2 2 2"/></svg></button>` : ""}
+          ${isArchive ? `<button class="btn-icon" data-action="delete" title="Delete permanently">✕</button>` : ""}
         </li>`;
       });
     }
@@ -877,6 +918,30 @@ $("#task-list").addEventListener("click", async e => {
   if (action === "edit") {
     openEditSheet(id);
   }
+  if (action === "archive") {
+    const task = allTasks.find(t => t.id === id);
+    if (!task) return;
+    await api(`/api/tasks/${id}`, "PUT", { archived: true });
+    allTasks = allTasks.filter(t => t.id !== id);
+    selectedIds.delete(id);
+    renderTasks();
+    _pushUndo(`Archive "${task.title}"`,
+      async () => { await api(`/api/tasks/${id}`, "PUT", { archived: false }); await loadTasks(); },
+      async () => { await api(`/api/tasks/${id}`, "PUT", { archived: true  }); await loadTasks(); }
+    );
+    toast(`Archived "${task.title}"`);
+  }
+
+  if (action === "unarchive") {
+    const task = allTasks.find(t => t.id === id);
+    if (!task) return;
+    await api(`/api/tasks/${id}`, "PUT", { archived: false });
+    allTasks = allTasks.filter(t => t.id !== id);
+    selectedIds.delete(id);
+    renderTasks();
+    toast(`Restored "${task.title}"`);
+  }
+
   if (action === "delete") {
     const task = allTasks.find(t => t.id === id);
     const snapshot = task ? { ...task } : null;
@@ -945,16 +1010,36 @@ function updateHabitsTabsIndicator(animate = true) {
   positionFilterPill($("#tab-habits .filter-row"), animate);
 }
 
-// Tasks filter buttons (All / Pending / Done)
+// Tasks filter buttons (All / Pending / Done / Archive)
 $$("#tab-tasks .filter-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
     $$("#tab-tasks .filter-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
+    const prev = taskFilter;
     taskFilter = btn.dataset.filter;
+    selectedIds.clear();
     updateFilterIndicator();
-    renderTasks();
+    // Switching to/from archive needs a fresh API call (different endpoint)
+    if (taskFilter === "archive" || prev === "archive") {
+      await loadTasks();
+    } else {
+      renderTasks();
+    }
   });
 });
+
+// Wire auto-archive days setting (stored in localStorage)
+(function _wireAutoArchiveSetting() {
+  const el = document.getElementById("auto-archive-days");
+  if (!el) return;
+  el.value = localStorage.getItem("autoArchiveDays") || "0";
+  el.addEventListener("change", () => {
+    const v = Math.max(0, parseInt(el.value, 10) || 0);
+    el.value = v;
+    localStorage.setItem("autoArchiveDays", String(v));
+    toast(v > 0 ? `Auto-archive: ${v} day${v > 1 ? "s" : ""}` : "Auto-archive disabled");
+  });
+})();
 
 // Habits/Goals section switcher (mobile-only visually; harmless on desktop)
 $$("#tab-habits .filter-btn").forEach(btn => {
